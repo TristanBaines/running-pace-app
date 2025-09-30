@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+    <title>Coaching Results</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Your Pace Plans</h1>
+
+    <h2>Uncoached and Coached Paces per Segment</h2>
+    {{ tables[0]|safe }}
+
+    <h2>Finishing Times of Plans</h2>
+    <table class="data">
+        <tr>
+            <th>Plan</th>
+            <th>Finishing Time</th>
+        </tr>
+        {% for method, time in totals.items() %}
+        <tr>
+            <td>{{ method }}</td>
+            <td>{{ time }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div class="form-container mt-20">
+        <form action="/start_tracking" method="post">
+            <label>Select Pace Plan to Follow:</label>
+            <select name="selected_plan">
+                {% for method in totals.keys() %}
+                <option value="{{ method }}">{{ method }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="button-success">Start Live Tracking</button>
+        </form>
+
+        <form action="{{ url_for('index') }}" method="get">
+            <button type="submit" class="button-secondary">Back to Home</button>
+        </form>
+    </div>
+</body>
+</html>

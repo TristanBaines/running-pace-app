@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pace Predictor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Pace Plan Generator</h1>
+    
+    <div class="form-container">
+        <form action="/predict" method="post" enctype="multipart/form-data">
+            <label>Upload GPX File:</label>
+            <input type="file" name="gpx_file" accept=".gpx" required>
+
+            <label>Select Coaching Methods:</label>
+            <div class="checkbox-group">
+                <div class="checkbox-item">
+                    <input type="checkbox" id="slower" name="methods" value="Slower Uphills">
+                    <label for="slower">Slower Uphills</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="faster" name="methods" value="Faster Downhills">
+                    <label for="faster">Faster Downhills</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="flats" name="methods" value="Push Flats">
+                    <label for="flats">Push Flats</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="negative" name="methods" value="Negative Splits">
+                    <label for="negative">Negative Splits</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="chosen" name="methods" value="Chosen Time">
+                    <label for="chosen">Chosen Time</label>
+                </div>
+            </div>
+
+            <label>If Chosen Time is selected:</label>
+            <input type="number" name="target_time" step="0.1" placeholder="Target Total Time (Minutes)">
+            <input type="number" name="time_reduction" step="0.1" placeholder="Or Total Minutes Faster">
+
+            <button type="submit" class="button-success">Generate Coached Plan</button>
+        </form>
+    </div>
+</body>
+</html>

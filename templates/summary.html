@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Run Summary</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Run Summary</h1>
+
+    <div class="summary-stats">
+        <div class="stat-card">
+            <div class="stat-label">Total Actual Time</div>
+            <div class="stat-value">{{ summary.total_actual_time_formatted }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">
+                {% if summary.has_coached_plan %}
+                Coached Plan Time
+                {% else %}
+                Total Uncoached Time
+                {% endif %}
+            </div>
+            <div class="stat-value">{{ summary.total_predicted_time_formatted }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Difference</div>
+            <div class="stat-value {{ 'faster' if summary.total_difference_sec < 0 else 'slower' }}">
+                {{ summary.difference_formatted }}
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Average Actual Pace</div>
+            <div class="stat-value">{{ summary.avg_actual_pace }}</div>
+        </div>
+    </div>
+
+    <h2>Pace Comparison by Segment</h2>
+    <canvas id="pace-chart"></canvas>
+
+    <h2>Segment Details</h2>
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>Segment</th>
+                {% if summary.has_coached_plan %}
+                <th>Uncoached Pace</th>
+                <th>Coached Pace</th>
+                {% else %}
+                <th>Uncoached Pace</th>
+                {% endif %}
+                <th>Actual Pace</th>
+                <th>Difference</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for i in range(summary.segments|length) %}
+            <tr>
+                <td>{{ i + 1 }}</td>
+                {% if summary.has_coached_plan %}
+                <td>{{ summary.uncoached_paces_display[i] }}</td>
+                <td>{{ summary.coached_paces_display[i] }}</td>
+                {% else %}
+                <td>{{ summary.predicted_paces_display[i] }}</td>
+                {% endif %}
+                <td>{{ summary.actual_paces_display[i] }}</td>
+                <td class="{{ 'faster' if summary.differences[i] < 0 else 'slower' }}">
+                    {{ summary.differences_display[i] }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="text-center mt-20">
+        <a href="{{ url_for('index') }}" class="button button-primary">New Run</a>
+    </div>
+
+    <script>
+        const segments = {{ summary.segments | tojson | safe }};
+        
+        // Convert decimal minutes to mm:ss format for display
+        function formatPaceForChart(decimalMinutes) {
+            const minutes = Math.floor(decimalMinutes);
+            const seconds = Math.round((decimalMinutes - minutes) * 60);
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // Prepare actual paces (already in minutes)
+        const actualPaces = {{ summary.actual_paces_min | tojson | safe }};
+        
+        {% if summary.has_coached_plan %}
+        // When coaching was used, show all three lines
+        const uncoachedPaces = {{ summary.uncoached_paces | tojson | safe }};
+        const coachedPaces = {{ summary.coached_paces | tojson | safe }};
+        
+        const datasets = [
+            {
+                label: 'Actual Pace',
+                data: actualPaces,
+                borderColor: 'rgb(231, 76, 60)',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                borderWidth: 3,
+                tension: 0.3,
+                pointRadius: 5
+            },
+            {
+                label: 'Uncoached Pace',
+                data: uncoachedPaces,
+                borderColor: 'rgb(149, 165, 166)',
+                backgroundColor: 'rgba(149, 165, 166, 0.1)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                tension: 0.3,
+                pointRadius: 4
+            },
+            {
+                label: 'Coached Pace',
+                data: coachedPaces,
+                borderColor: 'rgb(52, 152, 219)',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: 4
+            }
+        ];
+        {% else %}
+        // When no coaching was used, show only two lines
+        const predictedPaces = {{ summary.predicted_paces_min | tojson | safe }};
+        
+        const datasets = [
+            {
+                label: 'Actual Pace',
+                data: actualPaces,
+                borderColor: 'rgb(231, 76, 60)',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                borderWidth: 3,
+                tension: 0.3,
+                pointRadius: 5
+            },
+            {
+                label: 'Uncoached Pace',
+                data: predictedPaces,
+                borderColor: 'rgb(52, 152, 219)',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: 4
+            }
+        ];
+        {% endif %}
+
+        const ctx = document.getElementById('pace-chart').getContext('2d');
+
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: segments,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 14
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                const value = context.parsed.y;
+                                const formattedPace = formatPaceForChart(value);
+                                return `${label}: ${formattedPace} min/km`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Segment (km)',
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Pace (min/km)',
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return formatPaceForChart(value);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
