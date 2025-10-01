@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 </head>
 <body>
     <h1>Run Summary</h1>
@@ -39,8 +40,11 @@
     <h2>Pace Comparison by Segment</h2>
     <canvas id="pace-chart"></canvas>
 
+    <h2>Performance Analysis</h2>
+    <canvas id="difference-chart"></canvas>
+
     <h2>Segment Details</h2>
-    <table class="comparison-table">
+    <table class="data">
         <thead>
             <tr>
                 <th>Segment</th>
@@ -78,6 +82,9 @@
     </div>
 
     <script>
+        // Register the datalabels plugin
+        Chart.register(ChartDataLabels);
+        
         const segments = {{ summary.segments | tojson | safe }};
         
         // Convert decimal minutes to mm:ss format for display
@@ -103,7 +110,10 @@
                 backgroundColor: 'rgba(231, 76, 60, 0.1)',
                 borderWidth: 3,
                 tension: 0.3,
-                pointRadius: 5
+                pointRadius: 5,
+                datalabels: {
+                    display: false
+                }
             },
             {
                 label: 'Uncoached Pace',
@@ -113,7 +123,10 @@
                 borderWidth: 2,
                 borderDash: [5, 5],
                 tension: 0.3,
-                pointRadius: 4
+                pointRadius: 4,
+                datalabels: {
+                    display: false
+                }
             },
             {
                 label: 'Coached Pace',
@@ -122,7 +135,10 @@
                 backgroundColor: 'rgba(52, 152, 219, 0.1)',
                 borderWidth: 2,
                 tension: 0.3,
-                pointRadius: 4
+                pointRadius: 4,
+                datalabels: {
+                    display: false
+                }
             }
         ];
         {% else %}
@@ -137,7 +153,10 @@
                 backgroundColor: 'rgba(231, 76, 60, 0.1)',
                 borderWidth: 3,
                 tension: 0.3,
-                pointRadius: 5
+                pointRadius: 5,
+                datalabels: {
+                    display: false
+                }
             },
             {
                 label: 'Uncoached Pace',
@@ -146,7 +165,10 @@
                 backgroundColor: 'rgba(52, 152, 219, 0.1)',
                 borderWidth: 2,
                 tension: 0.3,
-                pointRadius: 4
+                pointRadius: 4,
+                datalabels: {
+                    display: false
+                }
             }
         ];
         {% endif %}
@@ -206,6 +228,107 @@
                         ticks: {
                             callback: function(value) {
                                 return formatPaceForChart(value);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Create diverging bar chart showing difference from coached/predicted pace
+        const ctx2 = document.getElementById('difference-chart').getContext('2d');
+        
+        {% if summary.has_coached_plan %}
+        // Calculate differences: actual - coached (negative = faster than coached)
+        const paceDifferences = actualPaces.map((actual, i) => {
+            return (actual - coachedPaces[i]) * 60; // Convert to seconds
+        });
+        const comparisonLabel = 'vs Coached Pace';
+        {% else %}
+        // Calculate differences: actual - predicted (negative = faster than predicted)
+        const paceDifferences = actualPaces.map((actual, i) => {
+            return (actual - predictedPaces[i]) * 60; // Convert to seconds
+        });
+        const comparisonLabel = 'vs Uncoached Pace';
+        {% endif %}
+        
+        // Create colors array - green for negative (faster), red for positive (slower)
+        const barColors = paceDifferences.map(diff => diff < 0 ? 'rgba(39, 174, 96, 0.8)' : 'rgba(231, 76, 60, 0.8)');
+        const borderColors = paceDifferences.map(diff => diff < 0 ? 'rgb(39, 174, 96)' : 'rgb(231, 76, 60)');
+        
+        const differenceChart = new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: segments,
+                datasets: [{
+                    label: `Pace Difference ${comparisonLabel}`,
+                    data: paceDifferences,
+                    backgroundColor: barColors,
+                    borderColor: borderColors,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 14
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed.y;
+                                const absValue = Math.abs(value);
+                                const status = value < 0 ? 'faster' : 'slower';
+                                return `${absValue.toFixed(0)}s ${status}`;
+                            }
+                        }
+                    },
+                    datalabels: {
+                        anchor: 'end',
+                        align: function(context) {
+                            return context.dataset.data[context.dataIndex] < 0 ? 'end' : 'start';
+                        },
+                        formatter: function(value) {
+                            return (value > 0 ? '+' : '') + value.toFixed(0) + 's';
+                        },
+                        color: '#2c3e50',
+                        font: {
+                            weight: 'bold',
+                            size: 11
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Segment (km)',
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Time Difference (seconds)',
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return (value > 0 ? '+' : '') + value + 's';
                             }
                         }
                     }
