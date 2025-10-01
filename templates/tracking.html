@@ -22,6 +22,15 @@
     <button class="button-success" id="start-button" onclick="startRun()">START RUN</button>
     <button class="button-primary" id="split-button" onclick="logSplit()" disabled>LOG SPLIT</button>
 
+    <!-- Completion Message (hidden by default) -->
+<div id="completion-message" style="display: none;">
+    <div class="completion-box">
+        <h2 style="color: #27ae60; margin-bottom: 20px;">🎉 Run Complete! 🎉</h2>
+        <p style="font-size: 18px; margin-bottom: 20px;">Great job! You've completed all segments.</p>
+        <a href="/run_summary" class="button button-success">View Run Summary</a>
+    </div>
+</div>
+
     <div class="mt-20">
         <h3>Completed Segments</h3>
         <table class="data">
@@ -115,8 +124,15 @@
                         if (data.run_completed) {
                             clearInterval(timerInterval);
                             document.getElementById('split-button').disabled = true;
-                            alert('Run completed! Redirecting to summary...');
-                            window.location.href = '/run_summary';
+                            
+                            // Show completion message instead of alert
+                            document.getElementById('completion-message').style.display = 'block';
+                            
+                            // Scroll to completion message
+                            document.getElementById('completion-message').scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'center' 
+                            });
                         }
                     }
                 });
