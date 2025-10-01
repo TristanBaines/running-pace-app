@@ -1,7 +1,4 @@
-# Handles file uploads, coordinates between scripts, serves web pages
-# Routes: /upload, /predict, /coaching, /tracking, /
-
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, flash, redirect, url_for
 import os
 import pandas as pd
 import numpy as np
@@ -24,6 +21,10 @@ app.secret_key = 'your-secret-key-here'  # Change this to a random string
 # Global tracker storage (in production, use database)
 active_trackers = {}
 
+def allowed_file(filename):
+    """Check if file has .gpx extension"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() == 'gpx'
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -31,76 +32,73 @@ def index():
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    # --- Step 1: Upload GPX ---
+    # --- Step 1: Validate and Upload GPX ---
+    if 'gpx_file' not in request.files:
+        flash('No file uploaded', 'error')
+        return redirect(url_for('index'))
+    
     gpx_file = request.files["gpx_file"]
+    
+    if gpx_file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('index'))
+    
+    if not allowed_file(gpx_file.filename):
+        flash('Invalid file type. Please upload a .gpx file only.', 'error')
+        return redirect(url_for('index'))
+    
     gpx_path = os.path.join(UPLOAD_FOLDER, gpx_file.filename)
     gpx_file.save(gpx_path)
 
-    # --- Step 2: GPX → CSV (features) ---
-    route_csv_path = os.path.join(UPLOAD_FOLDER, "New_Route.csv")
-    route_df = process_gpx_route_with_enhanced_features(gpx_path, output_path=route_csv_path)
+    try:
+        # --- Step 2: GPX → CSV (features) ---
+        route_csv_path = os.path.join(UPLOAD_FOLDER, "New_Route.csv")
+        route_df = process_gpx_route_with_enhanced_features(gpx_path, output_path=route_csv_path)
 
-    # --- Step 3: Run model prediction ---
-    predictor = PacePredictor(MODEL_DIR)
-    predictions, pred_csv = predictor.predict_route(route_csv_path, output_csv_path=os.path.join(UPLOAD_FOLDER, "Predicted_Paces.csv"), create_plots=False)
-    route_data = pd.read_csv(pred_csv)
+        # --- Step 3: Run model prediction ---
+        predictor = PacePredictor(MODEL_DIR)
+        predictions, pred_csv = predictor.predict_route(route_csv_path, output_csv_path=os.path.join(UPLOAD_FOLDER, "Predicted_Paces.csv"), create_plots=False)
+        route_data = pd.read_csv(pred_csv)
 
-    # --- Step 4: Coaching methods ---
-    selected_methods = request.form.getlist("methods")
-    target_time = request.form.get("target_time")
-    time_reduction = request.form.get("time_reduction")
+        # --- Step 4: Coaching methods ---
+        selected_methods = request.form.getlist("methods")
+        target_time = request.form.get("target_time")
+        time_reduction = request.form.get("time_reduction")
 
-    # Build extra params if needed
-    extra_params = {}
-    if "Chosen Time" in selected_methods:
-        fast_time_params = {}
-        if target_time:
-            fast_time_params["target_time"] = float(target_time)
-        if time_reduction:
-            fast_time_params["time_reduction"] = float(time_reduction)
-        extra_params["Chosen Time"] = fast_time_params
+        # Build extra params if needed
+        extra_params = {}
+        if "Chosen Time" in selected_methods:
+            fast_time_params = {}
+            if target_time:
+                fast_time_params["target_time"] = float(target_time)
+            if time_reduction:
+                fast_time_params["time_reduction"] = float(time_reduction)
+            extra_params["Chosen Time"] = fast_time_params
 
-    results = get_coached_paces(route_data, selected_methods, output_csv_path=os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv"), extra_params=extra_params)
+        results = get_coached_paces(route_data, selected_methods, output_csv_path=os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv"), extra_params=extra_params)
 
-    # --- Step 5: Build a DataFrame with all results ---
+        # --- Step 5: Build a DataFrame with all results ---
 
-    coach = SimplePaceCoaching()
-    formatted_results = coach.format_results_for_display(results)
+        coach = SimplePaceCoaching()
+        formatted_results = coach.format_results_for_display(results)
 
-    # Build per-segment DataFrame (paces formatted as mm:ss)
-    results_df = pd.DataFrame({"Segment": route_data["segment_km"]})
-    for method_name, data in formatted_results.items():
-        results_df[method_name] = data["paces_display"]
+        # Build per-segment DataFrame (paces formatted as mm:ss)
+        results_df = pd.DataFrame({"Segment": route_data["segment_km"]})
+        for method_name, data in formatted_results.items():
+            results_df[method_name] = data["paces_display"]
 
-    # Build totals summary (formatted as h m s)
-    totals_summary = {method: data["total_time_display"] for method, data in formatted_results.items()}
+        # Build totals summary (formatted as h m s)
+        totals_summary = {method: data["total_time_display"] for method, data in formatted_results.items()}
+        
+        return render_template(
+            "results.html", 
+            tables=[results_df.to_html(classes="data", index=False, escape = False)], 
+            totals=totals_summary
+        )
     
-    #formatted_results = coach.format_results_for_display(results)
-    
-    #results_df = pd.DataFrame({"Segment": route_data["segment_km"]})
-    #for method_name, data in results.items():
-    #    results_df[method_name] = np.round(data["paces"], 2)
-
-    # Build totals summary (in minutes)
-    # totals_summary = {method: round(data["total_time"], 2) for method, data in results.items()}
-
-    return render_template(
-        "results.html", 
-        tables=[results_df.to_html(classes="data", index=False, escape = False)], 
-        totals=totals_summary
-    )
-    
-    
-    
-    #results_df = route_data[["segment_km", "predicted_pace"]].copy()
-    #results_df.rename(columns={"segment_km": "Segment", "predicted_pace": "Predicted Pace"}, inplace=True)
-
-    #for method, paces in results.items():
-       # if method != "baseline":  # baseline already included as predicted_pace
-      #      results_df[method] = paces
-     #       results_df = results_df.round(2)
-
-    #return render_template("results.html", tables=[results_df.to_html(classes="data", index=False)], titles=results_df.columns.values)
+    except Exception as e:
+        flash(f'Error processing GPX file: {str(e)}', 'error')
+        return redirect(url_for('index'))
 
 @app.route("/start_tracking", methods=["POST"])
 def start_tracking():

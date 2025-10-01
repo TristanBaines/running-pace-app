@@ -187,7 +187,7 @@
                 plugins: {
                     legend: {
                         display: true,
-                        position: 'middle',
+                        position: 'top',
                         labels: {
                             font: {
                                 size: 14
@@ -292,17 +292,15 @@
                         }
                     },
                     datalabels: {
-                        anchor: 'end',
-                        align: function(context) {
-                            return context.dataset.data[context.dataIndex] < 0 ? 'end' : 'start';
-                        },
+                        anchor: 'center',
+                        align: 'center',
                         formatter: function(value) {
                             return (value > 0 ? '+' : '') + value.toFixed(0) + 's';
                         },
-                        color: '#2c3e50',
+                        color: 'white',
                         font: {
                             weight: 'bold',
-                            size: 11
+                            size: 12
                         }
                     }
                 },
