@@ -206,6 +206,12 @@ def run_summary():
     summary['differences'] = differences
     summary['differences_display'] = differences_display
     summary['segments'] = list(range(1, len(summary['actual_paces_min']) + 1))
+
+    # Add elevation data for the elevation chart
+    coached_csv = os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv")
+    route_data = pd.read_csv(coached_csv)
+    summary['elevation_gain'] = route_data['elevation_gain_m'].tolist()
+    summary['elevation_loss'] = route_data['elevation_loss_m'].tolist()
     
     return render_template("summary.html", summary=summary)
 

@@ -43,6 +43,9 @@
     <h2>Performance Analysis</h2>
     <canvas id="difference-chart"></canvas>
 
+    <h2>Elevation Profile</h2>
+    <canvas id="elevation-chart"></canvas>
+
     <h2>Segment Details</h2>
     <table class="data">
         <thead>
@@ -328,6 +331,81 @@
                         ticks: {
                             callback: function(value) {
                                 return (value > 0 ? '+' : '') + value + 's';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Create elevation profile chart
+        const ctx3 = document.getElementById('elevation-chart').getContext('2d');
+
+        // Get elevation data from summary
+        const elevationGain = {{ summary.elevation_gain | tojson | safe }};
+        const elevationLoss = {{ summary.elevation_loss | tojson | safe }};
+        const netElevation = elevationGain.map((gain, i) => gain - elevationLoss[i]);
+
+        const elevationChart = new Chart(ctx3, {
+            type: 'bar',
+            data: {
+                labels: segments,
+                datasets: [{
+                    label: 'Net Elevation Change',
+                    data: netElevation,
+                    backgroundColor: netElevation.map(elev => elev > 0 ? 'rgba(231, 76, 60, 0.7)' : 'rgba(52, 152, 219, 0.7)'),
+                    borderColor: netElevation.map(elev => elev > 0 ? 'rgb(231, 76, 60)' : 'rgb(52, 152, 219)'),
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 14
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed.y;
+                                return value > 0 ? `+${value.toFixed(1)}m gain` : `${value.toFixed(1)}m loss`;
+                            }
+                        }
+                    },
+                    datalabels: {
+                        display: true  // Don't show labels on elevation bars
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Segment (km)',
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Net Elevation (m)',
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value > 0 ? '+' + value + 'm' : value + 'm';
                             }
                         }
                     }
