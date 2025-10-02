@@ -130,16 +130,28 @@ class SimplePaceCoaching:
         predicted_paces = paces if paces is not None else route_data['predicted_pace'].values
         adjusted_paces = predicted_paces.copy()
 
+        # Calculate net elevation for each segment
+        net_elevation_m = route_data['elevation_gain_m'] - route_data['elevation_loss_m']
+        
+        # Convert segment distance from km to meters
+        segment_distance_m = route_data['segment_distance_km'] * 1000
+        
+        # Calculate gradient as percentage (rise/run * 100)
+        gradient_percent = (net_elevation_m / segment_distance_m) * 100
+        
+        # Identify flat segments: between -1% and 1%
+        is_flat = (gradient_percent >= -1.0) & (gradient_percent <= 1.0)
+
         baseline_pace = 5.476 # calculated as the average pace on flats
         decrease_factor = 0.95
         
-        mask_faster = adjusted_paces <= baseline_pace # Case 1: faster than or equal to baseline → leave unchanged
+        mask_faster = is_flat & (adjusted_paces <= baseline_pace) # Case 1: faster than or equal to baseline → leave unchanged
 
-        mask_within  = (adjusted_paces > baseline_pace) & (adjusted_paces <= baseline_pace * 1.05) # Case 2: within 5% slower than baseline → set to baseline
+        mask_within  = is_flat & (adjusted_paces > baseline_pace) & (adjusted_paces <= baseline_pace * 1.05) # Case 2: within 5% slower than baseline → set to baseline
         adjusted_paces[mask_within ] = baseline_pace
 
         # Case 3: more than 5% slower than baseline → speed up by 5%
-        mask_slower = adjusted_paces > baseline_pace * 1.05
+        mask_slower = is_flat & (adjusted_paces > baseline_pace * 1.05)
         adjusted_paces[mask_slower] *= decrease_factor
                 
         return adjusted_paces
