@@ -122,10 +122,16 @@ def start_tracking():
     
     # Get predicted paces for display
     predicted_paces = tracker.predicted_paces.tolist()
+
+    # Get elevation data for display
+    elevation_gains = route_data['elevation_gain_m'].tolist()
+    elevation_losses = route_data['elevation_loss_m'].tolist()
     
     return render_template("tracking.html", 
                           total_segments=tracker.total_segments,
-                          predicted_paces=predicted_paces)
+                          predicted_paces=predicted_paces,
+                          elevation_gains=elevation_gains,
+                          elevation_losses=elevation_losses)
 
 @app.route("/start_run", methods=["POST"])
 def start_run():

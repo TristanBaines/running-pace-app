@@ -10,6 +10,7 @@
     
     <div class="info-box">
         <p><strong>Segment:</strong> <span id="current-segment">0</span> / <span id="total-segments">{{ total_segments }}</span></p>
+        <p><strong>Elevation Gain:</strong> <span id="elevation-gain">--</span> m | <strong>Elevation Loss:</strong> <span id="elevation-loss">--</span> m</p>
         <p><strong>Segment Predicted Pace:</strong> <span id="predicted-pace">--:--</span> min/km</p>
     </div>
 
@@ -56,6 +57,8 @@
         let currentSegment = 0;
         const totalSegments = {{ total_segments | int }};
         const predictedPaces = {{ predicted_paces | tojson | safe }};
+        const elevationGains = {{ elevation_gains | tojson | safe }};
+        const elevationLosses = {{ elevation_losses | tojson | safe }};
 
         function formatTime(seconds) {
             const hours = Math.floor(seconds / 3600);
@@ -142,6 +145,8 @@
             document.getElementById('current-segment').textContent = currentSegment;
             if (currentSegment < predictedPaces.length) {
                 document.getElementById('predicted-pace').textContent = formatPace(predictedPaces[currentSegment]);
+                document.getElementById('elevation-gain').textContent = elevationGains[currentSegment].toFixed(1);
+                document.getElementById('elevation-loss').textContent = elevationLosses[currentSegment].toFixed(1);
             }
         }
     </script>
