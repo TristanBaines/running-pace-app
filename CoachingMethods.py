@@ -13,12 +13,11 @@ class SimplePaceCoaching:
         """Initialize with your coaching methods."""
         # Define your 5 coaching methods here
         self.available_methods = {
-            'Slower Uphills': 'Slower Uphills',
+            'Push Uphills': 'Push Uphills',
             'Faster Downhills': 'Faster Downhills', 
             'Push Flats': 'Push Flats',
             'Negative Splits': 'Negative Splits',
-            'Chosen Time': 'Chosen Time',
-            'Push Uphills': 'Push Uphills'
+            'Chosen Time': 'Chosen Time'
         }
     
     def apply_coaching(self, route_data: pd.DataFrame, selected_methods: List[str], extra_params: Dict[str, dict] = None) -> Dict[str, np.ndarray]:
@@ -40,7 +39,7 @@ class SimplePaceCoaching:
         for method in selected_methods:
             friendly_name = self.available_methods.get(method, method)
 
-            if method == 'Slower Uphills':
+            if method == 'Push Uphills':
                 adjusted = self._method_1(route_data, paces=cumulative_paces)
             elif method == 'Faster Downhills':
                 adjusted = self._method_2(route_data, paces=cumulative_paces)
@@ -51,8 +50,6 @@ class SimplePaceCoaching:
             elif method == 'Chosen Time':
                 params = extra_params.get("Chosen Time", {}) if extra_params else {}
                 adjusted = self._method_5(route_data, paces=cumulative_paces, **params)
-            elif method == 'Push Uphills':
-                adjusted = self._method_6(route_data, paces=cumulative_paces)
             else:
                 print(f"Warning: Unknown method '{method}' - skipping")
                 continue
@@ -94,8 +91,8 @@ class SimplePaceCoaching:
         
         # Apply 4.912344777209644% pace increase to uphill segments
         # (slower pace = higher time per km)
-        pace_increase_factor = 1.04912344777209644
-        adjusted_paces[is_uphill] *= pace_increase_factor
+        pace_decrease_factor = 1 - 0.04912344777209644
+        adjusted_paces[is_uphill] *= pace_decrease_factor
                 
         return adjusted_paces
     
@@ -217,33 +214,6 @@ class SimplePaceCoaching:
         # Apply adjustment equally to all segments
         adjusted_paces -= per_km_adjustment
 
-        return adjusted_paces
-    
-    def _method_6(self, route_data: pd.DataFrame, paces = None) -> np.ndarray:
-
-        """Fast Downhills - decrease pace by 4.419284149013879% on downhills."""
-
-        predicted_paces = paces if paces is not None else route_data['predicted_pace'].values
-        adjusted_paces = predicted_paces.copy()
-        
-        # Calculate net elevation for each segment
-        net_elevation_m = route_data['elevation_gain_m'] - route_data['elevation_loss_m']
-        
-        # Convert segment distance from km to meters
-        segment_distance_m = route_data['segment_distance_km'] * 1000
-        
-        # Calculate gradient as percentage (rise/run * 100)
-        gradient_percent = (net_elevation_m / segment_distance_m) * 100
-        
-        # Classify terrain based on gradient thresholds
-        # Downhill: < -1%, Uphill: > 1%, Flat: between -1% and 1%
-        is_uphill = gradient_percent > 1.0
-        
-        # Apply 4.419284149013879% pace decrease to downhill segments
-        # (faster pace = lower time per km)
-        pace_decrease_factor = 0.95
-        adjusted_paces[is_uphill] *= pace_decrease_factor
-                
         return adjusted_paces
 
     def get_available_methods(self) -> Dict[str, str]:
