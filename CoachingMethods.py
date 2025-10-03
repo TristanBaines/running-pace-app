@@ -14,7 +14,7 @@ class SimplePaceCoaching:
         # Define your 5 coaching methods here
         self.available_methods = {
             'Push Uphills': 'Push Uphills',
-            'Faster Downhills': 'Faster Downhills', 
+            'Push Downhills': 'Push Downhills', 
             'Push Flats': 'Push Flats',
             'Negative Splits': 'Negative Splits',
             'Chosen Time': 'Chosen Time'
@@ -41,7 +41,7 @@ class SimplePaceCoaching:
 
             if method == 'Push Uphills':
                 adjusted = self._method_1(route_data, paces=cumulative_paces)
-            elif method == 'Faster Downhills':
+            elif method == 'Push Downhills':
                 adjusted = self._method_2(route_data, paces=cumulative_paces)
             elif method == 'Push Flats':
                 adjusted = self._method_3(route_data, paces=cumulative_paces)
