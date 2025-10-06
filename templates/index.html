@@ -8,6 +8,18 @@
 <body>
     <h1>Pace Plan Generator</h1>
     
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
     <div class="form-container">
         <form action="/predict" method="post" enctype="multipart/form-data">
             <label>Upload GPX File:</label>
@@ -37,23 +49,31 @@
                 </div>
             </div>
 
-            <label>If Chosen Time is selected:</label>
-            <input type="number" name="target_time" step="0.1" placeholder="Target Total Time (Minutes)">
-            <input type="number" name="time_reduction" step="0.1" placeholder="Or Total Minutes Faster">
+            <div id="chosen-time-inputs" style="display: none;">
+                <label>Enter Target Finishing Time (in minutes):</label>
+                <input type="number" name="target_time" step="0.1" placeholder="Target Finish Time">
+                
+                <label>Or Enter Desired Faster Time (in minutes):</label>
+                <input type="number" name="time_reduction" step="0.1" placeholder="Minutes Faster">
+            </div>
 
             <button type="submit" class="button-success">Generate Coached Plan</button>
         </form>
     </div>
+
+    <script>
+        // Show/hide Chosen Time inputs based on checkbox
+        document.getElementById('chosen').addEventListener('change', function() {
+            const chosenTimeInputs = document.getElementById('chosen-time-inputs');
+            if (this.checked) {
+                chosenTimeInputs.style.display = 'block';
+            } else {
+                chosenTimeInputs.style.display = 'none';
+                // Clear the input values when hiding
+                document.querySelector('input[name="target_time"]').value = '';
+                document.querySelector('input[name="time_reduction"]').value = '';
+            }
+        });
+    </script>
 </body>
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        <div class="flash-messages">
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        </div>
-    {% endif %}
-{% endwith %}
 </html>
