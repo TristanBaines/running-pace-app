@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Pace Predictor</title>
+    <title>Pace Coach</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Pace Plan Generator</h1>
+    <h1>Personal Coach and Pace Plan Generator</h1>
     
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
