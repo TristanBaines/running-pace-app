@@ -31,18 +31,28 @@ class PacePredictor:
     def _load_model_components(self):
         """Load the trained model, scaler, and metadata."""
         try:
+            # Auto-detect model type by finding metadata file
+            metadata_files = [f for f in os.listdir(self.model_dir) if f.endswith('_metadata.json')]
+            
+            if not metadata_files:
+                raise FileNotFoundError(f"No metadata file found in {self.model_dir}")
+            
+            # Use the first metadata file found
+            metadata_filename = metadata_files[0]
+            model_type = metadata_filename.replace('_metadata.json', '')
+            
             # Load metadata
-            metadata_path = os.path.join(self.model_dir, 'LinearRegression_metadata.json')
+            metadata_path = os.path.join(self.model_dir, metadata_filename)
             with open(metadata_path, 'r') as f:
                 self.metadata = json.load(f)
             
             # Load model
-            model_path = os.path.join(self.model_dir, 'LinearRegression_model.pkl')
+            model_path = os.path.join(self.model_dir, f'{model_type}_model.pkl')
             with open(model_path, 'rb') as f:
                 self.model = pickle.load(f)
             
             # Load scaler
-            scaler_path = os.path.join(self.model_dir, 'LinearRegression_scaler.pkl')
+            scaler_path = os.path.join(self.model_dir, f'{model_type}_scaler.pkl')
             with open(scaler_path, 'rb') as f:
                 self.scaler = pickle.load(f)
             
@@ -58,7 +68,7 @@ class PacePredictor:
             
         except FileNotFoundError as e:
             raise FileNotFoundError(f"Could not find model files in {self.model_dir}. "
-                                  f"Make sure you've saved the model first. Error: {e}")
+                                f"Make sure you've saved the model first. Error: {e}")
         except Exception as e:
             raise Exception(f"Error loading model components: {e}")
     

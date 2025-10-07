@@ -9,8 +9,13 @@ import numpy as np
 from typing import List, Dict
 
 class SimplePaceCoaching:
-    def __init__(self):
+    def __init__(self, model_name='Tristan'):
         """Initialize with your coaching methods."""
+        from coaching_config import get_coaching_params
+
+        self.model_name = model_name
+        self.params = get_coaching_params(model_name)
+
         # Define your 5 coaching methods here
         self.available_methods = {
             'Push Uphills': 'Push Uphills',
@@ -71,7 +76,7 @@ class SimplePaceCoaching:
     
     def _method_1(self, route_data: pd.DataFrame, paces = None) -> np.ndarray:
 
-        """Slow Uphills - increase pace by 4.912344777209644% on uphills."""
+        """Push Uphills - decrease pace by 4.912344777209644% on uphills."""
 
         predicted_paces = paces if paces is not None else route_data['predicted_pace'].values
         adjusted_paces = predicted_paces.copy()
@@ -91,14 +96,14 @@ class SimplePaceCoaching:
         
         # Apply 4.912344777209644% pace increase to uphill segments
         # (slower pace = higher time per km)
-        pace_decrease_factor = 1 - 0.04912344777209644
+        pace_decrease_factor = self.params['push_uphills_decrease_factor'] # 0.95087655222790356 # this is 1 - 0.04912344777209644
         adjusted_paces[is_uphill] *= pace_decrease_factor
                 
         return adjusted_paces
     
     def _method_2(self, route_data: pd.DataFrame, paces = None) -> np.ndarray:
 
-        """Fast Downhills - decrease pace by 4.419284149013879% on downhills."""
+        """Push Downhills - decrease pace by 4.419284149013879% on downhills."""
 
         predicted_paces = paces if paces is not None else route_data['predicted_pace'].values
         adjusted_paces = predicted_paces.copy()
@@ -118,7 +123,7 @@ class SimplePaceCoaching:
         
         # Apply 4.419284149013879% pace decrease to downhill segments
         # (faster pace = lower time per km)
-        pace_decrease_factor = 0.95580715850986121  # This is 1 - 0.04419284149013879
+        pace_decrease_factor = self.params['push_downhills_decrease_factor'] # 0.95580715850986121  # This is 1 - 0.04419284149013879
         adjusted_paces[is_downhill] *= pace_decrease_factor
                 
         return adjusted_paces
@@ -142,7 +147,7 @@ class SimplePaceCoaching:
         # Identify flat segments: between -1% and 1%
         is_flat = (gradient_percent >= -1.0) & (gradient_percent <= 1.0)
 
-        baseline_pace = 5.476 # calculated as the average pace on flats
+        baseline_pace = self.params['push_flats_baseline_pace'] # 5.476 # calculated as the average pace on flats
         decrease_factor = 0.95
         
         mask_faster = is_flat & (adjusted_paces <= baseline_pace) # Case 1: faster than or equal to baseline → leave unchanged
@@ -150,7 +155,7 @@ class SimplePaceCoaching:
         mask_within  = is_flat & (adjusted_paces > baseline_pace) & (adjusted_paces <= baseline_pace * 1.05) # Case 2: within 5% slower than baseline → set to baseline
         adjusted_paces[mask_within ] = baseline_pace
 
-        # Case 3: more than 5% slower than baseline → speed up by 5%
+        # Case 3: more than 5% slower than baseline -> speed up by 5%
         mask_slower = is_flat & (adjusted_paces > baseline_pace * 1.05)
         adjusted_paces[mask_slower] *= decrease_factor
                 
@@ -281,7 +286,7 @@ def decimal_minutes_to_time_format(decimal_minutes):
     return f"{hours} h {minutes} min {seconds} sec"
 
 # Simple function for web app integration
-def get_coached_paces(route_data: pd.DataFrame, selected_methods: List[str], output_csv_path: str = None, extra_params: Dict[str, dict] = None) -> Dict[str, dict]:
+def get_coached_paces(route_data: pd.DataFrame, selected_methods: List[str], output_csv_path: str = None, extra_params: Dict[str, dict] = None, model_name: str = 'Tristan') -> Dict[str, dict]:
     """
     Simple function to get coached paces.
 
@@ -291,11 +296,12 @@ def get_coached_paces(route_data: pd.DataFrame, selected_methods: List[str], out
         output_csv_path: Optional path to save results
         extra_params: Optional dict of extra parameters for methods
                       Example: {"Fast_Time": {"target_time": 105}}
+        model_name: Name of athlete model being used
 
     Returns:
         Dictionary with coaching results
     """
-    coach = SimplePaceCoaching()
+    coach = SimplePaceCoaching(model_name=model_name)
 
     results = coach.apply_coaching(route_data, selected_methods, extra_params)
 

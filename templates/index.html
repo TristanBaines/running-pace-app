@@ -22,6 +22,12 @@
     
     <div class="form-container">
         <form action="/predict" method="post" enctype="multipart/form-data">
+            <label>Select Athlete Model:</label>
+            <select name="selected_model" required>
+                <option value="Tristan">Tristan's Model</option>
+                <option value="Talia">Talia's Model</option>
+            </select>
+            
             <label>Upload GPX File:</label>
             <input type="file" name="gpx_file" accept=".gpx" required>
 

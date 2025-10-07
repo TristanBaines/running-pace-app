@@ -32,6 +32,10 @@ def index():
 
 @app.route("/predict", methods=["POST"])
 def predict():
+
+    # Get selected model
+    selected_model = request.form.get("selected_model", "Tristan")
+
     # --- Step 1: Validate and Upload GPX ---
     if 'gpx_file' not in request.files:
         flash('No file uploaded', 'error')
@@ -55,8 +59,9 @@ def predict():
         route_csv_path = os.path.join(UPLOAD_FOLDER, "New_Route.csv")
         route_df = process_gpx_route_with_enhanced_features(gpx_path, output_path=route_csv_path)
 
-        # --- Step 3: Run model prediction ---
-        predictor = PacePredictor(MODEL_DIR)
+        # --- Step 3: Run model prediction with selected model ---
+        model_dir = os.path.join(MODEL_DIR, selected_model)
+        predictor = PacePredictor(model_dir)
         predictions, pred_csv = predictor.predict_route(route_csv_path, output_csv_path=os.path.join(UPLOAD_FOLDER, "Predicted_Paces.csv"), create_plots=False)
         route_data = pd.read_csv(pred_csv)
 
@@ -75,7 +80,7 @@ def predict():
                 fast_time_params["time_reduction"] = float(time_reduction)
             extra_params["Chosen Time"] = fast_time_params
 
-        results = get_coached_paces(route_data, selected_methods, output_csv_path=os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv"), extra_params=extra_params)
+        results = get_coached_paces(route_data, selected_methods, output_csv_path=os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv"), extra_params=extra_params, model_name=selected_model)
 
         # --- Step 5: Build a DataFrame with all results ---
 
