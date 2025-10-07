@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Deep Performance Analytics</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+</head>
+<body>
+    <h1>🔍 Deep Performance Analytics</h1>
+
+    <!-- Coaching Effectiveness Overview -->
+    <div class="analytics-section">
+        <h2>📊 Coaching Effectiveness</h2>
+        <div class="summary-stats">
+            <div class="stat-card">
+                <div class="stat-label">Adherence Rate To Coached Plan</div>
+                <div class="stat-value">{{ "%.1f"|format(analytics.coaching_effectiveness.adherence_rate) }}%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Deviation From Coahed Plan</div>
+                <div class="stat-value">{{ "%.0f"|format(analytics.coaching_effectiveness.mae_seconds) }}s</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Segments on Target</div>
+                <div class="stat-value">{{ analytics.coaching_effectiveness.segments_within_target }}</div>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <p><strong>Coaching Methods Applied:</strong></p>
+            <ul style="margin-left: 20px;">
+                {% if analytics.coaching_effectiveness.coaching_methods_used %}
+                    {% for method in analytics.coaching_effectiveness.coaching_methods_used %}
+                        <li>{{ method }}</li>
+                    {% endfor %}
+                {% else %}
+                    <li>No coaching methods applied (baseline prediction)</li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Terrain Performance Analysis -->
+    <div class="analytics-section">
+        <h2>⛰️ Terrain Performance Analysis</h2>
+        
+        <div class="terrain-grid">
+            {% if analytics.terrain_analysis.uphill %}
+            <div class="terrain-card uphill">
+                <h3>Uphills (>1% gradient)</h3>
+                <div class="terrain-stats">
+                    <p><strong>Segments:</strong> {{ analytics.terrain_analysis.uphill.count }}</p>
+                    <p><strong>Avg Gradient:</strong> {{ "%.1f"|format(analytics.terrain_analysis.uphill.avg_gradient) }}%</p>
+                    <p><strong>Avg Actual Pace:</strong> {{ analytics.terrain_analysis.uphill.avg_actual_pace_display }}</p>
+                    <p><strong>Avg Coached Pace:</strong> {{ analytics.terrain_analysis.uphill.avg_coached_pace_display }}</p>
+                    <p class="{{ 'faster' if analytics.terrain_analysis.uphill.avg_difference < 0 else 'slower' }}">
+                        <strong>Avg Difference:</strong> {{ "%.0f"|format(analytics.terrain_analysis.uphill.avg_difference * 60) }}s
+                    </p>
+                    <p><strong>Uphills Performance:</strong> {{ analytics.terrain_analysis.uphill.segments_faster }} faster, 
+                       {{ analytics.terrain_analysis.uphill.segments_slower }} slower</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if analytics.terrain_analysis.flat %}
+            <div class="terrain-card flat">
+                <h3>Flats (-1% to 1% gradient)</h3>
+                <div class="terrain-stats">
+                    <p><strong>Segments:</strong> {{ analytics.terrain_analysis.flat.count }}</p>
+                    <p><strong>Avg Gradient:</strong> {{ "%.1f"|format(analytics.terrain_analysis.flat.avg_gradient) }}%</p>
+                    <p><strong>Avg Actual Pace:</strong> {{ analytics.terrain_analysis.flat.avg_actual_pace_display }}</p>
+                    <p><strong>Avg Coached Pace:</strong> {{ analytics.terrain_analysis.flat.avg_coached_pace_display }}</p>
+                    <p class="{{ 'faster' if analytics.terrain_analysis.flat.avg_difference < 0 else 'slower' }}">
+                        <strong>Avg Difference:</strong> {{ "%.0f"|format(analytics.terrain_analysis.flat.avg_difference * 60) }}s
+                    </p>
+                    <p><strong>Flats Performance:</strong> {{ analytics.terrain_analysis.flat.segments_faster }} faster, 
+                       {{ analytics.terrain_analysis.flat.segments_slower }} slower</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if analytics.terrain_analysis.downhill %}
+            <div class="terrain-card downhill">
+                <h3>Downhills (<-1% gradient)</h3>
+                <div class="terrain-stats">
+                    <p><strong>Segments:</strong> {{ analytics.terrain_analysis.downhill.count }}</p>
+                    <p><strong>Avg Gradient:</strong> {{ "%.1f"|format(analytics.terrain_analysis.downhill.avg_gradient) }}%</p>
+                    <p><strong>Avg Actual Pace:</strong> {{ analytics.terrain_analysis.downhill.avg_actual_pace_display }}</p>
+                    <p><strong>Avg Coached Pace:</strong> {{ analytics.terrain_analysis.downhill.avg_coached_pace_display }}</p>
+                    <p class="{{ 'faster' if analytics.terrain_analysis.downhill.avg_difference < 0 else 'slower' }}">
+                        <strong>Avg Difference:</strong> {{ "%.0f"|format(analytics.terrain_analysis.downhill.avg_difference * 60) }}s
+                    </p>
+                    <p><strong>Downhills Performance:</strong> {{ analytics.terrain_analysis.downhill.segments_faster }} faster, 
+                       {{ analytics.terrain_analysis.downhill.segments_slower }} slower</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <h3>Pace by Terrain Type</h3>
+        <canvas id="terrain-chart"></canvas>
+    </div>
+
+    <!-- Pacing Consistency Analysis -->
+    <div class="analytics-section">
+        <h2>🎯 Pacing Consistency</h2>
+        <div class="summary-stats">
+            <div class="stat-card">
+                <div class="stat-label">Variation From Average Pace Of Run</div>
+                <div class="stat-value">{{ "%.1f"|format(analytics.consistency_analysis.actual_cv) }}%</div>
+                <div class="stat-sublabel">{{ 'Excellent' if analytics.consistency_analysis.actual_cv < 10 else 'Good' if analytics.consistency_analysis.actual_cv < 15 else 'Needs Work' }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Pace Change</div>
+                <div class="stat-value">{{ "%.1f"|format(analytics.consistency_analysis.avg_pace_change * 60) }}s</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Significant Changes</div>
+                <div class="stat-value">{{ analytics.consistency_analysis.num_significant_changes }}</div>
+                <div class="stat-sublabel">(>10% fluctuation)</div>
+            </div>
+        </div>
+
+        <h3>Pace Variability Across Segments</h3>
+        <canvas id="consistency-chart"></canvas>
+    </div>
+
+    <!-- Split Analysis -->
+    <div class="analytics-section">
+        <h2>⏱️ Split Analysis</h2>
+        <div class="split-comparison">
+            <div class="split-half">
+                <h3>First Half</h3>
+                <p><strong>Average Actual Pace:</strong> {{ analytics.split_analysis.first_half_avg_actual_display }}</p>
+                <p><strong>Average Coached Pace:</strong> {{ analytics.split_analysis.first_half_avg_coached_display }}</p>
+            </div>
+            <div class="split-half">
+                <h3>Second Half</h3>
+                <p><strong>Actual AvgAverage Actual Pace:</strong> {{ analytics.split_analysis.second_half_avg_actual_display }}</p>
+                <p><strong>Average Coached Pace:</strong> {{ analytics.split_analysis.second_half_avg_coached_display }}</p>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <p><strong>Split Type:</strong> 
+                <span class="{{ 'faster' if analytics.split_analysis.split_type == 'negative' else 'slower' }}">
+                    {{ analytics.split_analysis.split_type|upper }} SPLIT
+                </span>
+            </p>
+            <p><strong>Difference:</strong> {{ "%.1f"|format(abs(analytics.split_analysis.split_difference) * 60) }}s 
+               {{ 'faster' if analytics.split_analysis.split_type == 'negative' else 'slower' }} in second half</p>
+        </div>
+    </div>
+
+    <!-- Best and Worst Segments -->
+    <div class="analytics-section">
+        <h2>🏆 Best & Worst Segments</h2>
+        
+        <div class="segments-comparison">
+            <div class="segments-column">
+                <h3 style="color: #27ae60;">Best Performing Segments</h3>
+                <table class="data">
+                    <thead>
+                        <tr>
+                            <th>Segment</th>
+                            <th>Actual</th>
+                            <th>Coached</th>
+                            <th>Difference</th>
+                            <th>Elevation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for seg in analytics.best_worst_segments.best_segments %}
+                        <tr>
+                            <td>{{ seg.segment }}</td>
+                            <td>{{ seg.actual_pace_display }}</td>
+                            <td>{{ seg.coached_pace_display }}</td>
+                            <td class="faster">{{ "%.0f"|format(seg.difference_seconds) }}s</td>
+                            <td>{{ "%.1f"|format(seg.net_elevation) }}m</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="segments-column">
+                <h3 style="color: #e74c3c;">Struggled Segments</h3>
+                <table class="data">
+                    <thead>
+                        <tr>
+                            <th>Segment</th>
+                            <th>Actual</th>
+                            <th>Coached</th>
+                            <th>Difference</th>
+                            <th>Elevation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for seg in analytics.best_worst_segments.worst_segments %}
+                        <tr>
+                            <td>{{ seg.segment }}</td>
+                            <td>{{ seg.actual_pace_display }}</td>
+                            <td>{{ seg.coached_pace_display }}</td>
+                            <td class="slower">+{{ "%.0f"|format(seg.difference_seconds) }}s</td>
+                            <td>{{ "%.1f"|format(seg.net_elevation) }}m</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="analytics-section">
+        <h2>💡 Training Recommendations</h2>
+        <div class="recommendations-box">
+            {% for recommendation in analytics.recommendations %}
+            <div class="recommendation-item">
+                <span class="recommendation-icon">→</span>
+                <span>{{ recommendation }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="text-center mt-20">
+        <a href="{{ url_for('run_summary') }}" class="button button-secondary">← Back to Summary</a>
+        <a href="{{ url_for('index') }}" class="button button-primary">New Run</a>
+    </div>
+
+    <script>
+        Chart.register(ChartDataLabels);
+
+        // Terrain Performance Chart
+        const terrainCtx = document.getElementById('terrain-chart').getContext('2d');
+        
+        const terrainData = {
+            labels: ['Uphill', 'Flat', 'Downhill'],
+            datasets: [
+                {
+                    label: 'Actual Pace',
+                    data: [
+                        {% if analytics.terrain_analysis.uphill %}{{ analytics.terrain_analysis.uphill.avg_actual_pace }}{% else %}null{% endif %},
+                        {% if analytics.terrain_analysis.flat %}{{ analytics.terrain_analysis.flat.avg_actual_pace }}{% else %}null{% endif %},
+                        {% if analytics.terrain_analysis.downhill %}{{ analytics.terrain_analysis.downhill.avg_actual_pace }}{% else %}null{% endif %}
+                    ],
+                    backgroundColor: 'rgba(231, 76, 60, 0.7)',
+                    borderColor: 'rgb(231, 76, 60)',
+                    borderWidth: 2
+                },
+                {
+                    label: 'Coached Pace',
+                    data: [
+                        {% if analytics.terrain_analysis.uphill %}{{ analytics.terrain_analysis.uphill.avg_coached_pace }}{% else %}null{% endif %},
+                        {% if analytics.terrain_analysis.flat %}{{ analytics.terrain_analysis.flat.avg_coached_pace }}{% else %}null{% endif %},
+                        {% if analytics.terrain_analysis.downhill %}{{ analytics.terrain_analysis.downhill.avg_coached_pace }}{% else %}null{% endif %}
+                    ],
+                    backgroundColor: 'rgba(52, 152, 219, 0.7)',
+                    borderColor: 'rgb(52, 152, 219)',
+                    borderWidth: 2
+                }
+            ]
+        };
+
+        new Chart(terrainCtx, {
+            type: 'bar',
+            data: terrainData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: true },
+                    datalabels: { display: false }
+                },
+                scales: {
+                    y: {
+                        title: { display: true, text: 'Pace (min/km)' },
+                        ticks: {
+                            callback: function(value) {
+                                const min = Math.floor(value);
+                                const sec = Math.floor((value - min) * 60);
+                                return `${min}:${sec.toString().padStart(2, '0')}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Consistency Chart - Pace variation across segments
+        const consistencyCtx = document.getElementById('consistency-chart').getContext('2d');
+        
+        const segments = {{ analytics.segments | tojson | safe }};
+        const actualPaces = {{ analytics.actual_paces | tojson | safe }};
+        const coachedPaces = {{ analytics.coached_paces | tojson | safe }};
+        const netElevation = {{ analytics.net_elevation | tojson | safe }};
+
+        new Chart(consistencyCtx, {
+            type: 'line',
+            data: {
+                labels: segments,
+                datasets: [
+                    {
+                        label: 'Actual Pace',
+                        data: actualPaces,
+                        borderColor: 'rgb(231, 76, 60)',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        pointRadius: 5,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Coached Pace',
+                        data: coachedPaces,
+                        borderColor: 'rgb(52, 152, 219)',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        pointRadius: 4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Net Elevation',
+                        data: netElevation,
+                        type: 'bar',
+                        backgroundColor: netElevation.map(e => e > 0 ? 'rgba(231, 76, 60, 0.3)' : 'rgba(39, 174, 96, 0.3)'),
+                        borderColor: netElevation.map(e => e > 0 ? 'rgba(231, 76, 60, 0.5)' : 'rgba(39, 174, 96, 0.5)'),
+                        borderWidth: 1,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: { display: true },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.dataset.label === 'Net Elevation') {
+                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}m`;
+                                }
+                                const value = context.parsed.y;
+                                const min = Math.floor(value);
+                                const sec = Math.floor((value - min) * 60);
+                                return `${context.dataset.label}: ${min}:${sec.toString().padStart(2, '0')} min/km`;
+                            }
+                        }
+                    },
+                    datalabels: { display: false }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Segment (km)' }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { display: true, text: 'Pace (min/km)' },
+                        ticks: {
+                            callback: function(value) {
+                                const min = Math.floor(value);
+                                const sec = Math.floor((value - min) * 60);
+                                return `${min}:${sec.toString().padStart(2, '0')}`;
+                            }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { display: true, text: 'Elevation (m)' },
+                        grid: {
+                            drawOnChartArea: false
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value > 0 ? '+' + value + 'm' : value + 'm';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

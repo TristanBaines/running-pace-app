@@ -8,8 +8,10 @@ from StandAlonePacePredictor import PacePredictor
 from CoachingMethods import get_coached_paces, SimplePaceCoaching, decimal_minutes_to_pace_format, decimal_minutes_to_time_format
 from RunTracker import RunTracker
 from flask import session
+from Analytics import PerformanceAnalytics
 
 app = Flask(__name__)
+app.jinja_env.globals.update(abs=abs) # allows the use of the abs() function in any templates
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -67,6 +69,7 @@ def predict():
 
         # --- Step 4: Coaching methods ---
         selected_methods = request.form.getlist("methods")
+        session['coaching_methods'] = selected_methods # for saving the chosen coaching methods
         target_time = request.form.get("target_time")
         time_reduction = request.form.get("time_reduction")
 
@@ -225,6 +228,94 @@ def run_summary():
     summary['elevation_loss'] = route_data['elevation_loss_m'].tolist()
     
     return render_template("summary.html", summary=summary)
+
+@app.route("/deeper_analytics")
+def deeper_analytics():
+    """Deep analytics page comparing actual performance to coached plan"""
+    tracker_id = session.get('tracker_id')
+    if not tracker_id or tracker_id not in active_trackers:
+        return "No completed run found", 404
+    
+    tracker = active_trackers[tracker_id]
+    
+    # Get basic summary data
+    summary = tracker.get_run_summary()
+    
+    # Load route data for elevation and coaching info
+    coached_csv = os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv")
+    route_data = pd.read_csv(coached_csv)
+    
+    # Extract data for analytics
+    actual_paces = summary['actual_paces_min']
+    
+    if summary['has_coached_plan']:
+        coached_paces = summary['coached_paces']
+        uncoached_paces = summary['uncoached_paces']
+    else:
+        coached_paces = summary['predicted_paces_min']
+        uncoached_paces = summary['predicted_paces_min']
+    
+    elevation_gains = route_data['elevation_gain_m'].tolist()
+    elevation_losses = route_data['elevation_loss_m'].tolist()
+    
+    # Get coaching methods from session or form data
+    # You'll need to store this when the user selects methods
+    coaching_methods = session.get('coaching_methods', [])
+    
+    # Create analytics engine
+    analytics = PerformanceAnalytics(
+        actual_paces=actual_paces,
+        coached_paces=coached_paces,
+        uncoached_paces=uncoached_paces,
+        elevation_gains=elevation_gains,
+        elevation_losses=elevation_losses,
+        coaching_methods=coaching_methods
+    )
+    
+    # Generate full report
+    analytics_report = analytics.get_full_analytics_report()
+    
+    # Format for display
+    from CoachingMethods import decimal_minutes_to_pace_format
+    
+    # Format terrain analysis
+    if analytics_report['terrain_analysis']['uphill']:
+        for key in ['avg_actual_pace', 'avg_coached_pace']:
+            analytics_report['terrain_analysis']['uphill'][key + '_display'] = \
+                decimal_minutes_to_pace_format(analytics_report['terrain_analysis']['uphill'][key])
+    
+    if analytics_report['terrain_analysis']['downhill']:
+        for key in ['avg_actual_pace', 'avg_coached_pace']:
+            analytics_report['terrain_analysis']['downhill'][key + '_display'] = \
+                decimal_minutes_to_pace_format(analytics_report['terrain_analysis']['downhill'][key])
+    
+    if analytics_report['terrain_analysis']['flat']:
+        for key in ['avg_actual_pace', 'avg_coached_pace']:
+            analytics_report['terrain_analysis']['flat'][key + '_display'] = \
+                decimal_minutes_to_pace_format(analytics_report['terrain_analysis']['flat'][key])
+    
+    # Format split analysis
+    for key in ['first_half_avg_actual', 'second_half_avg_actual', 
+                'first_half_avg_coached', 'second_half_avg_coached']:
+        analytics_report['split_analysis'][key + '_display'] = \
+            decimal_minutes_to_pace_format(analytics_report['split_analysis'][key])
+    
+    # Format best/worst segments
+    for segment in analytics_report['best_worst_segments']['best_segments']:
+        segment['actual_pace_display'] = decimal_minutes_to_pace_format(segment['actual_pace'])
+        segment['coached_pace_display'] = decimal_minutes_to_pace_format(segment['coached_pace'])
+    
+    for segment in analytics_report['best_worst_segments']['worst_segments']:
+        segment['actual_pace_display'] = decimal_minutes_to_pace_format(segment['actual_pace'])
+        segment['coached_pace_display'] = decimal_minutes_to_pace_format(segment['coached_pace'])
+    
+    # Add segment-level data for charts
+    analytics_report['segments'] = list(range(1, len(actual_paces) + 1))
+    analytics_report['actual_paces'] = actual_paces
+    analytics_report['coached_paces'] = coached_paces
+    analytics_report['net_elevation'] = (np.array(elevation_gains) - np.array(elevation_losses)).tolist()
+    
+    return render_template("analytics.html", analytics=analytics_report)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
