@@ -82,14 +82,16 @@
         }
 
         function updateTimers() {
-            if (isPaused){
-                return;
+            if (isPaused) {
+                return;  // Timer frozen while paused
             }
+            
             const now = Date.now() / 1000;
             const totalElapsed = (now - startTime) - totalPausedTime;
             document.getElementById('total-timer').textContent = formatTime(totalElapsed);
-
-            const segmentElapsed = (now - segmentStartTime) - totalPausedTime;
+            
+            // Segment timer just shows time since segment started (no pause adjustment needed in frontend)
+            const segmentElapsed = now - segmentStartTime;
             document.getElementById('segment-timer').textContent = formatTime(segmentElapsed);
         }
 
@@ -162,8 +164,12 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'resumed') {
-                            totalPausedTime += data.pause_duration;
-                            segmentPausedTime += data.pause_duration;
+                            const pauseDuration = data.pause_duration;
+                            totalPausedTime += pauseDuration;
+                            totalPausedTime += data.pause_duration;  // Only update total
+
+                            segmentStartTime += pauseDuration;
+                            
                             isPaused = false;
                             document.getElementById('pause-button').textContent = 'PAUSE';
                             document.getElementById('pause-button').className = 'button-warning';

@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, flash, redirect, url_for
+from flask import Flask, request, render_template, flash, redirect, url_for, session
 import os
 import pandas as pd
 import numpy as np
@@ -7,7 +7,6 @@ from CreatesCSVFromNewRouteGPXFile import process_gpx_route_with_enhanced_featur
 from StandAlonePacePredictor import PacePredictor
 from CoachingMethods import get_coached_paces, SimplePaceCoaching, decimal_minutes_to_pace_format, decimal_minutes_to_time_format
 from RunTracker import RunTracker
-from flask import session
 from Analytics import PerformanceAnalytics
 
 app = Flask(__name__)
