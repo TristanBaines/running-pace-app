@@ -21,6 +21,7 @@
     <p class="timer-label">Current Segment Time</p>
 
     <button class="button-success" id="start-button" onclick="startRun()">START RUN</button>
+    <button class="button-warning" id="pause-button" onclick="togglePause()" disabled style="display: none;">PAUSE</button>
     <button class="button-primary" id="split-button" onclick="logSplit()" disabled>LOG SPLIT</button>
 
     <!-- Completion Message (hidden by default) -->
@@ -55,6 +56,9 @@
         let startTime = null;
         let segmentStartTime = null;
         let currentSegment = 0;
+        let isPaused = false;
+        let totalPausedTime = 0;
+        let segmentPausedTime = 0;
         const totalSegments = {{ total_segments | int }};
         const predictedPaces = {{ predicted_paces | tojson | safe }};
         const elevationGains = {{ elevation_gains | tojson | safe }};
@@ -78,10 +82,14 @@
         }
 
         function updateTimers() {
+            if (isPaused){
+                return;
+            }
             const now = Date.now() / 1000;
-            const totalElapsed = now - startTime;
+            const totalElapsed = (now - startTime) - totalPausedTime;
             document.getElementById('total-timer').textContent = formatTime(totalElapsed);
-            const segmentElapsed = now - segmentStartTime;
+
+            const segmentElapsed = (now - segmentStartTime) - totalPausedTime;
             document.getElementById('segment-timer').textContent = formatTime(segmentElapsed);
         }
 
@@ -94,6 +102,11 @@
                         segmentStartTime = startTime;
                         document.getElementById('start-button').disabled = true;
                         document.getElementById('split-button').disabled = false;
+                        
+                        totalPausedTime = 0;
+                        segmentPausedTime = 0;
+                        document.getElementById('pause-button').disabled = false;
+                        document.getElementById('pause-button').style.display = 'inline-block';
                         timerInterval = setInterval(updateTimers, 100);
                         updateSegmentInfo();
                     }
@@ -121,6 +134,7 @@
                         `;
 
                         segmentStartTime = Date.now() / 1000;
+                        segmentPausedTime = 0;
                         currentSegment = data.segment;
                         updateSegmentInfo();
 
@@ -139,6 +153,38 @@
                         }
                     }
                 });
+        }
+
+        function togglePause() {
+            if (isPaused) {
+                // Resume
+                fetch('/resume_run', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'resumed') {
+                            totalPausedTime += data.pause_duration;
+                            segmentPausedTime += data.pause_duration;
+                            isPaused = false;
+                            document.getElementById('pause-button').textContent = 'PAUSE';
+                            document.getElementById('pause-button').className = 'button-warning';
+                            document.getElementById('split-button').disabled = false;
+                            timerInterval = setInterval(updateTimers, 100);
+                        }
+                    });
+            } else {
+                // Pause
+                fetch('/pause_run', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'paused') {
+                            isPaused = true;
+                            document.getElementById('pause-button').textContent = 'RESUME';
+                            document.getElementById('pause-button').className = 'button-success';
+                            document.getElementById('split-button').disabled = true;
+                            clearInterval(timerInterval);
+                        }
+                    });
+            }
         }
 
         function updateSegmentInfo() {

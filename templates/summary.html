@@ -300,7 +300,21 @@
                         }
                     },
                     datalabels: {
-                        display: false
+                        display: true,
+                        anchor: 'end',
+                        align: function(context) {
+                            // Labels appear above positive bars, below negative bars
+                            return context.dataset.data[context.dataIndex] >= 0 ? 'top' : 'bottom';
+                        },
+                        formatter: function(value) {
+                            // Format as +/-Xs (e.g., "+15s" or "-8s")
+                            return (value > 0 ? '+' : '') + value.toFixed(0) + 's';
+                        },
+                        color: '#2c3e50',
+                        font: {
+                            weight: 'bold',
+                            size: 11
+                        }
                     }
                 },
                 scales: {
@@ -375,7 +389,21 @@
                         }
                     },
                     datalabels: {
-                        display: false
+                        display: true,
+                        anchor: 'end',
+                        align: function(context) {
+                            // Labels appear above positive bars, below negative bars
+                            return context.dataset.data[context.dataIndex] >= 0 ? 'top' : 'bottom';
+                        },
+                        formatter: function(value) {
+                            // Format as +/-X.Xm (e.g., "+15.3m" or "-8.7m")
+                            return (value > 0 ? '+' : '') + value.toFixed(1) + 'm';
+                        },
+                        color: '#2c3e50',
+                        font: {
+                            weight: 'bold',
+                            size: 11
+                        } 
                     }
                 },
                 scales: {

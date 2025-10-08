@@ -31,6 +31,12 @@ class RunTracker:
             raise ValueError(f"Column {self.selected_plan_col} not found in route data")
         
         self.total_segments = len(self.predicted_paces)
+
+        # Pause functionality
+        self.is_paused = False
+        self.pause_start_time = None
+        self.total_paused_time = 0.0
+        self.segment_paused_time = 0.0
         
         # Tracking data
         self.run_start_time = None
@@ -58,8 +64,32 @@ class RunTracker:
             "total_segments": self.total_segments
         }
     
+    def pause_run(self):
+        """Pause the run timer"""
+        if not self.is_running or self.is_paused or self.is_completed:
+            return {"error": "Cannot pause"}
+        
+        self.is_paused = True
+        self.pause_start_time = time.time()
+        return {"status": "paused"}
+
+    def resume_run(self):
+        """Resume the run timer"""
+        if not self.is_paused:
+            return {"error": "Not paused"}
+        
+        pause_duration = time.time() - self.pause_start_time
+        self.total_paused_time += pause_duration
+        self.segment_paused_time += pause_duration
+        self.is_paused = False
+        
+        return {"status": "resumed", "pause_duration": pause_duration}
+    
     def log_km_split(self):
         """Log completion of current km segment"""
+        if self.is_paused:
+            return jsonify({"error": "Cannot log split while paused"}) # paused
+        
         if not self.is_running:
             return jsonify({"error": "Run not started"})
         
@@ -69,7 +99,7 @@ class RunTracker:
         current_time = time.time()
         
         # Calculate time for this segment (in seconds)
-        segment_time_sec = current_time - self.segment_start_time
+        segment_time_sec = (current_time - self.segment_start_time) - self.segment_paused_time # taking pause into account
         segment_time_min = segment_time_sec / 60
         
         # Get predicted pace for this segment (in minutes)
@@ -97,6 +127,7 @@ class RunTracker:
         # Move to next segment
         self.current_segment += 1
         self.segment_start_time = current_time
+        self.segment_paused_time = 0.0 # reset pause time
         
         # Check if run is complete
         if self.current_segment >= self.total_segments:

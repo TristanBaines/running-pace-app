@@ -141,6 +141,21 @@ def start_tracking():
                           elevation_gains=elevation_gains,
                           elevation_losses=elevation_losses)
 
+
+@app.route("/pause_run", methods=["POST"])
+def pause_run():
+    tracker_id = session.get('tracker_id')
+    if not tracker_id or tracker_id not in active_trackers:
+        return {"error": "No active tracker"}
+    return active_trackers[tracker_id].pause_run()
+
+@app.route("/resume_run", methods=["POST"])
+def resume_run():
+    tracker_id = session.get('tracker_id')
+    if not tracker_id or tracker_id not in active_trackers:
+        return {"error": "No active tracker"}
+    return active_trackers[tracker_id].resume_run()
+
 @app.route("/start_run", methods=["POST"])
 def start_run():
     tracker_id = session.get('tracker_id')

@@ -11,7 +11,7 @@
     <h2>Uncoached and Coached Paces per Segment</h2>
     {{ tables[0]|safe }}
 
-    <h2>Finishing Times of Plans</h2>
+    <h2>Finishing Times of each Plan</h2>
     <table class="data">
         <tr>
             <th>Plan</th>
@@ -27,7 +27,7 @@
 
     <div class="form-container mt-20">
         <form action="/start_tracking" method="post">
-            <label>Select Pace Plan to Follow:</label>
+            <label>Select the Pace Plan you would like to Follow:</label>
             <select name="selected_plan">
                 {% for method in totals.keys() %}
                 <option value="{{ method }}">{{ method }}</option>

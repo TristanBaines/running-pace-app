@@ -598,3 +598,12 @@ canvas {
         font-size: 16px;
     }
 }
+
+.button-warning {
+    background-color: #f39c12;
+    color: white;
+}
+
+.button-warning:hover {
+    background-color: #e67e22;
+}
