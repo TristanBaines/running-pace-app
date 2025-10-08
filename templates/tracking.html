@@ -87,7 +87,7 @@
             }
             
             const now = Date.now() / 1000;
-            const totalElapsed = (now - startTime) - totalPausedTime;
+            const totalElapsed = now - startTime;
             document.getElementById('total-timer').textContent = formatTime(totalElapsed);
             
             // Segment timer just shows time since segment started (no pause adjustment needed in frontend)
@@ -164,10 +164,13 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'resumed') {
+
                             const pauseDuration = data.pause_duration;
+
                             totalPausedTime += pauseDuration;
                             totalPausedTime += data.pause_duration;  // Only update total
 
+                            startTime += pauseDuration;
                             segmentStartTime += pauseDuration;
                             
                             isPaused = false;
