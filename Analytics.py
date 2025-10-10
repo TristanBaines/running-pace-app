@@ -202,16 +202,26 @@ class PerformanceAnalytics:
         
         if terrain['downhill'] and terrain['downhill']['avg_difference'] > 0.3: # more than x min/km slower than coached pace
             recommendations.append(
-                "Work on downhill running technique. You're not maximizing the benefit of descents."
+                "You were slower on downhills than expected - work on downhill running technique to maximize the benefit of descents."
+            )
+
+        if terrain['uphill']['avg_difference'] <= 0.3 and terrain['downhill']['avg_difference'] <= 0.3:
+            recommendations.append(
+                "You performed great on both uphills and downhills - excellent running!"
             )
         
         # Consistency recommendations
         consistency = self.analyze_pacing_consistency()
         
-        if consistency['actual_cv'] > 10: # more than x% fluctuation in pace
+        if consistency['actual_cv'] > 15: # more than x% fluctuation in pace
             recommendations.append(
                 f"Your pacing was inconsistent (CV: {consistency['actual_cv']:.1f}%). "
                 "Practice maintaining steady effort across segments."
+            )
+        elif consistency['actual_cv'] <= 15:
+            recommendations.append(
+                f"Your pacing was consistent (CV: {consistency['actual_cv']:.1f}%)."
+                "You maintained steady pacing across segments - keep it up!"
             )
         
         # Split recommendations
@@ -232,8 +242,8 @@ class PerformanceAnalytics:
 
         if effectiveness['beat_rate'] < 30:
             recommendations.append(
-                f"You beat the coached pace on {effectiveness['beat_rate']:.1f}% of segments. "
-                "The coached plan may be too aggressive - consider adjusting parameters."
+                f"You only beat the coached pace on {effectiveness['beat_rate']:.1f}% of segments. "
+                "The coached plan may be too tough - consider running more to improve fitness."
             )
         elif effectiveness['beat_rate'] > 70:
             recommendations.append(
@@ -242,7 +252,7 @@ class PerformanceAnalytics:
             )
         elif effectiveness['beat_rate'] >= 50:
             recommendations.append(
-                f"Good performance! You beat the coached pace on {effectiveness['beat_rate']:.1f}% of segments."
+                f"Good and well balanced performance! You beat the coached pace on {effectiveness['beat_rate']:.1f}% of segments."
             )
         
         if not recommendations:
