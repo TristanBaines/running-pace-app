@@ -15,16 +15,16 @@
         <h2>📊 Coaching Effectiveness</h2>
         <div class="summary-stats">
             <div class="stat-card">
-                <div class="stat-label">Adherence Rate To Coached Plan</div>
-                <div class="stat-value">{{ "%.1f"|format(analytics.coaching_effectiveness.adherence_rate) }}%</div>
+                <div class="stat-label">Beat Coached Plan Rate</div>
+                <div class="stat-value">{{ "%.1f"|format(analytics.coaching_effectiveness.beat_rate) }}%</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Avg Deviation From Coahed Plan</div>
+                <div class="stat-label">Avg Deviation From Coached Plan</div>
                 <div class="stat-value">{{ "%.0f"|format(analytics.coaching_effectiveness.mae_seconds) }}s</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Segments on Target</div>
-                <div class="stat-value">{{ analytics.coaching_effectiveness.segments_within_target }}</div>
+                <div class="stat-label">Coached Segments Beaten/div>
+                <div class="stat-value">{{ analytics.coaching_effectiveness.segments_beat }}</div>
             </div>
         </div>
 
@@ -160,7 +160,7 @@
         
         <div class="segments-comparison">
             <div class="segments-column">
-                <h3 style="color: #27ae60;">Best Performing Segments</h3>
+                <h3 style="color: #27ae60;">Top 3 Best Performing Segments</h3>
                 <table class="data">
                     <thead>
                         <tr>
@@ -185,8 +185,10 @@
                 </table>
             </div>
 
+            <!-- Replace the Struggling Segments column with: -->
+            {% if analytics.best_worst_segments.has_struggling_segments %}
             <div class="segments-column">
-                <h3 style="color: #e74c3c;">Struggled Segments</h3>
+                <h3 style="color: #e74c3c;">⚠ Struggled Segments</h3>
                 <table class="data">
                     <thead>
                         <tr>
@@ -210,6 +212,14 @@
                     </tbody>
                 </table>
             </div>
+            {% else %}
+            <div class="segments-column">
+                <h3 style="color: #27ae60;">🎉 No Struggled Segments!</h3>
+                <div class="info-box">
+                    <p>Excellent performance! You beat or matched the coached pace on every segment.</p>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 

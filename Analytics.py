@@ -130,9 +130,8 @@ class PerformanceAnalytics:
         mae = np.mean(np.abs(self.pace_differences))
         rmse = np.sqrt(np.mean(self.pace_differences ** 2))
         
-        # Percentage of segments within target (±5 seconds per km)
-        within_target = np.abs(self.pace_differences * 60) <= 5 # within 5 seconds of the coached pace
-        adherence_rate = (np.sum(within_target) / len(within_target)) * 100
+        segments_beat = self.pace_differences < 0
+        beat_rate = (np.sum(segments_beat) / len(segments_beat)) * 100
         
         # Compare improvement vs uncoached
         coached_improvement = self.uncoached_paces - self.coached_paces
@@ -141,8 +140,8 @@ class PerformanceAnalytics:
         return {
             'mae_seconds': float(mae * 60),
             'rmse_seconds': float(rmse * 60),
-            'adherence_rate': float(adherence_rate),
-            'segments_within_target': int(np.sum(within_target)),
+            'beat_rate': float(beat_rate),
+            'segments_beat': int(np.sum(segments_beat)),
             'avg_coached_improvement': float(np.mean(coached_improvement) * 60),
             'avg_actual_improvement': float(np.mean(actual_vs_uncoached) * 60),
             'coaching_methods_used': self.coaching_methods
@@ -156,10 +155,17 @@ class PerformanceAnalytics:
             Dictionary with best/worst segment information
         """
         # Best segments (most faster than coached)
-        best_indices = np.argsort(self.pace_differences)[:3]
+        best_indices = np.argsort(self.pace_differences)[:3] # shows top 3
         
-        # Worst segments (most slower than coached)
-        worst_indices = np.argsort(self.pace_differences)[-3:][::-1]
+        # Worst segments (slowest compared to coached - only positive differences)
+        slower_segments = np.where(self.pace_differences > 0)[0]  # Only segments where actual > coached
+
+        if len(slower_segments) > 0:
+            # Sort slower segments by how much slower they were
+            slower_sorted = slower_segments[np.argsort(self.pace_differences[slower_segments])[::-1]]
+            worst_indices = slower_sorted[:min(3, len(slower_sorted))]  # Take up to 3
+        else:
+            worst_indices = []  # No struggling segments if runner beat all paces
         
         def segment_info(idx):
             return {
@@ -172,7 +178,8 @@ class PerformanceAnalytics:
         
         return {
             'best_segments': [segment_info(i) for i in best_indices],
-            'worst_segments': [segment_info(i) for i in worst_indices]
+            'worst_segments': [segment_info(i) for i in worst_indices],
+            'has_struggling_segments': len(worst_indices) > 0
         }
     
     def generate_recommendations(self) -> List[str]:
@@ -222,15 +229,20 @@ class PerformanceAnalytics:
         
         # Coaching adherence
         effectiveness = self.analyze_coaching_effectiveness()
-        
-        if effectiveness['adherence_rate'] < 75:
+
+        if effectiveness['beat_rate'] < 30:
             recommendations.append(
-                f"Adherence to coached plan was {effectiveness['adherence_rate']:.1f}%. "
-                "Consider adjusting coaching parameters or pacing strategy."
+                f"You beat the coached pace on {effectiveness['beat_rate']:.1f}% of segments. "
+                "The coached plan may be too aggressive - consider adjusting parameters."
             )
-        elif effectiveness['adherence_rate'] >= 75:
+        elif effectiveness['beat_rate'] > 70:
             recommendations.append(
-                "Excellent adherence to the coached plan! The pacing strategy worked well for you."
+                f"Outstanding! You beat the coached pace on {effectiveness['beat_rate']:.1f}% of segments. "
+                "The pacing strategy worked excellently for you."
+            )
+        elif effectiveness['beat_rate'] >= 50:
+            recommendations.append(
+                f"Good performance! You beat the coached pace on {effectiveness['beat_rate']:.1f}% of segments."
             )
         
         if not recommendations:

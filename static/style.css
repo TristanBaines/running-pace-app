@@ -607,3 +607,9 @@ canvas {
 .button-warning:hover {
     background-color: #e67e22;
 }
+
+#split-button {
+    font-size: 24px;
+    padding: 25px 40px;
+    min-height: 80px;
+}
