@@ -17,13 +17,14 @@
             <div class="stat-card">
                 <div class="stat-label">Beat Coached Plan Rate</div>
                 <div class="stat-value">{{ "%.1f"|format(analytics.coaching_effectiveness.beat_rate) }}%</div>
+                <div class="stat-sublabel">(% of segments faster than coached pace)</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Avg Deviation From Coached Plan</div>
                 <div class="stat-value">{{ "%.0f"|format(analytics.coaching_effectiveness.mae_seconds) }}s</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Coached Segments Beaten/div>
+                <div class="stat-label">Coached Segments Beaten</div>
                 <div class="stat-value">{{ analytics.coaching_effectiveness.segments_beat }}</div>
             </div>
         </div>
@@ -119,7 +120,7 @@
             <div class="stat-card">
                 <div class="stat-label">Significant Changes</div>
                 <div class="stat-value">{{ analytics.consistency_analysis.num_significant_changes }}</div>
-                <div class="stat-sublabel">(>10% fluctuation)</div>
+                <div class="stat-sublabel">(>10% fluctuation between segment paces)</div>
             </div>
         </div>
 
@@ -144,7 +145,7 @@
         </div>
 
         <div class="info-box">
-            <p><strong>Split Type:</strong> 
+            <p><strong>Split Type Achieved:</strong> 
                 <span class="{{ 'faster' if analytics.split_analysis.split_type == 'negative' else 'slower' }}">
                     {{ analytics.split_analysis.split_type|upper }} SPLIT
                 </span>
