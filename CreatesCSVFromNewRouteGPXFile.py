@@ -98,6 +98,7 @@ def process_gpx_route_with_enhanced_features(gpx_path, output_path=None, segment
     cum_elevation_gain_m = 0.0
     cum_elevation_loss_m = 0.0
     prev_elevation_gain = 0.0
+    prev_elevation_loss = 0.0  # NEW: Track previous elevation loss
 
     for idx, seg in enumerate(route_segments):
         seg_distance = calculate_segment_distance(seg)
@@ -112,72 +113,82 @@ def process_gpx_route_with_enhanced_features(gpx_path, output_path=None, segment
         uphill_gradient = elev_gain / seg_distance if seg_distance > 0 else 0
         downhill_gradient = elev_loss / seg_distance if seg_distance > 0 else 0
 
-        # Calculate interaction features
+        # Calculate interaction features for GAIN
         cum_dist_elev_gain = cum_distance_km * elev_gain
         cum_dist_prev_elev_gain = cum_distance_km * prev_elevation_gain
         cum_dist_up_grad = cum_distance_km * uphill_gradient
 
-        # Create segment record with all features
-        segment_record = {
+        # NEW: Calculate interaction features for LOSS
+        cum_dist_elev_loss = cum_distance_km * elev_loss
+        cum_dist_prev_elev_loss = cum_distance_km * prev_elevation_loss
+        cum_dist_down_grad = cum_distance_km * downhill_gradient
 
+        # Create segment record with all features in the correct order
+        segment_record = {
             'run_id': run_id,
-            # Basic segment info
-            'segment_km': idx + 1,  # Changed to match training data format
+            'segment_km': idx + 1,
             'segment_distance_km': seg_distance,
-            'elevation_gain_m': elev_gain,
-            'elevation_loss_m': elev_loss,
-            
-            # Sequential features - previous km (set to 0 for route data since no historical pace/HR)
-            'prev_km_avg_pace': 0,  # No previous pace data for route
-            'prev_km_avg_hr': 0,    # No previous HR data for route
-            'prev_km_avg_cadence': 0,  # No previous cadence data for route
-            'prev_km_elevation_gain': prev_elevation_gain,
-            
-            # Cumulative features
             'cum_distance_km': cum_distance_km,
+            'elevation_gain_m': elev_gain,
+            'prev_km_elevation_gain': prev_elevation_gain,
             'cum_elevation_gain_m': cum_elevation_gain_m,
+            'elevation_loss_m': elev_loss,
+            'prev_km_elevation_loss': prev_elevation_loss,  # NEW
             'cum_elevation_loss_m': cum_elevation_loss_m,
-            
-            # Physiological features (set to 0 for route data)
-            'avg_cadence': 0,        # No cadence data for route
-            'avg_heart_rate': 0,     # No HR data for route
-            'recent_avg_pace': 0,    # No recent pace data for route
-            'recent_avg_hr': 0,      # No recent HR data for route
-            'cum_time_sec': 0,       # No time data for route
-            'avg_pace_so_far': 0,    # No pace data for route
-            'avg_hr_so_far': 0,      # No HR data for route
-            'avg_cadence_so_far': 0, # No cadence data for route
-            
-            # NEW ENHANCED FEATURES
             'uphill_gradient': uphill_gradient,
             'downhill_gradient': downhill_gradient,
             'cum_dist_elev_gain': cum_dist_elev_gain,
+            'cum_dist_elev_loss': cum_dist_elev_loss,  # NEW
             'cum_dist_prev_elev_gain': cum_dist_prev_elev_gain,
+            'cum_dist_prev_elev_loss': cum_dist_prev_elev_loss,  # NEW
             'cum_dist_up_grad': cum_dist_up_grad,
+            'cum_dist_down_grad': cum_dist_down_grad,  # NEW
         }
         
         data.append(segment_record)
+        
+        # Update previous values for next iteration
         prev_elevation_gain = elev_gain
+        prev_elevation_loss = elev_loss  # NEW
 
     # Convert to DataFrame
     df = pd.DataFrame(data)
     
-    # Reorder columns to match training dataset structure
-    # Put basic features first, then sequential, then cumulative, then enhanced features
+    # Define exact column order (matches your training dataset)
     column_order = [
-        'run_id', 'segment_km', 'segment_distance_km', 'cum_distance_km', 'elevation_gain_m', 'prev_km_elevation_gain', 'cum_elevation_gain_m', 'elevation_loss_m', 'cum_elevation_loss_m', 'uphill_gradient', 'downhill_gradient', 'cum_dist_elev_gain', 'cum_dist_prev_elev_gain', 'cum_dist_up_grad'
+        'run_id',
+        'segment_km',
+        'segment_distance_km',
+        'cum_distance_km',
+        'elevation_gain_m',
+        'prev_km_elevation_gain',
+        'cum_elevation_gain_m',
+        'elevation_loss_m',
+        'prev_km_elevation_loss',
+        'cum_elevation_loss_m',
+        'uphill_gradient',
+        'downhill_gradient',
+        'cum_dist_elev_gain',
+        'cum_dist_elev_loss',
+        'cum_dist_prev_elev_gain',
+        'cum_dist_prev_elev_loss',
+        'cum_dist_up_grad',
+        'cum_dist_down_grad'
     ]
     
-    # Only include columns that exist in the dataframe
-    existing_columns = [col for col in column_order if col in df.columns]
-    df = df[existing_columns]
+    # Reorder columns
+    df = df[column_order]
     
     print(f"\nRoute dataset shape: {df.shape}")
-    print(f"Columns: {list(df.columns)}")
+    print(f"Columns ({len(df.columns)}): {list(df.columns)}")
     
-    # Display summary of enhanced features
-    enhanced_features = ['uphill_gradient', 'downhill_gradient', 'cum_dist_elev_gain', 
-                        'cum_dist_prev_elev_gain', 'cum_dist_up_grad']
+    # Display summary of all enhanced features
+    enhanced_features = [
+        'uphill_gradient', 'downhill_gradient', 
+        'cum_dist_elev_gain', 'cum_dist_elev_loss',
+        'cum_dist_prev_elev_gain', 'cum_dist_prev_elev_loss',
+        'cum_dist_up_grad', 'cum_dist_down_grad'
+    ]
     
     print(f"\nEnhanced features summary:")
     for feature in enhanced_features:
@@ -197,7 +208,7 @@ def process_gpx_route_with_enhanced_features(gpx_path, output_path=None, segment
 if __name__ == '__main__':
     # Process your GPX route
     gpx_path = 'D:\\JonkershoekGate.gpx'
-    output_path = 'D:\\Most Recent\\NewRoute.csv'
+    output_path = 'D:\\Most Recent\\JonkershoekGate.csv'
     
     # Create enhanced route dataset
     route_df = process_gpx_route_with_enhanced_features(gpx_path, output_path)
@@ -207,9 +218,21 @@ if __name__ == '__main__':
     print(f"Total segments: {len(route_df)}")
     print(f"Total route distance: {route_df['cum_distance_km'].max():.2f} km")
     print(f"Total elevation gain: {route_df['cum_elevation_gain_m'].max():.1f} m")
+    print(f"Total elevation loss: {route_df['cum_elevation_loss_m'].max():.1f} m")
     print(f"Average uphill gradient: {route_df['uphill_gradient'].mean():.4f}")
+    print(f"Average downhill gradient: {route_df['downhill_gradient'].mean():.4f}")
     
-    # Display first few rows
+    # Display first few rows with key columns
     print(f"\nFirst 5 segments:")
-    key_columns = ['run_id', 'segment_km', 'elevation_gain_m', 'uphill_gradient', 'cum_dist_elev_gain', 'cum_dist_up_grad']
+    key_columns = [
+        'run_id', 'segment_km', 
+        'elevation_gain_m', 'prev_km_elevation_gain',
+        'elevation_loss_m', 'prev_km_elevation_loss',
+        'uphill_gradient', 'downhill_gradient'
+    ]
     print(route_df[key_columns].head())
+    
+    # Verify column order
+    print(f"\nColumn order verification:")
+    for i, col in enumerate(route_df.columns, 1):
+        print(f"  {i}. {col}")

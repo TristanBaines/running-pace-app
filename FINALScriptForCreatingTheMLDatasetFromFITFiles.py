@@ -190,6 +190,7 @@ def create_1km_segments(df, run_id):
         
         # Calculate previous km elevation gain
         segments_df['prev_km_elevation_gain'] = segments_df['elevation_gain_m'].shift(1).fillna(0)
+        segments_df['prev_km_elevation_loss'] = segments_df['elevation_loss_m'].shift(1).fillna(0)
 
         # Engineered features
         segments_df['uphill_gradient'] = segments_df['elevation_gain_m'] / segments_df['segment_distance_km'].replace(0, np.nan)
@@ -197,14 +198,17 @@ def create_1km_segments(df, run_id):
         segments_df['cum_dist_elev_gain'] = segments_df['cum_distance_km'] * segments_df['elevation_gain_m']
         segments_df['cum_dist_prev_elev_gain'] = segments_df['cum_distance_km'] * segments_df['prev_km_elevation_gain']
         segments_df['cum_dist_up_grad'] = segments_df['cum_distance_km'] * segments_df['uphill_gradient']
+        segments_df['cum_dist_elev_loss'] = segments_df['cum_distance_km'] * segments_df['elevation_loss_m']
+        segments_df['cum_dist_prev_elev_loss'] = segments_df['cum_distance_km'] * segments_df['prev_km_elevation_loss']
+        segments_df['cum_dist_down_grad'] = segments_df['cum_distance_km'] * segments_df['downhill_gradient']
         
         # Reorder columns to match exact specification
         column_order = [
             'run_id', 'segment_km', 'segment_distance_km', 'cum_distance_km',
             'elevation_gain_m', 'prev_km_elevation_gain', 'cum_elevation_gain_m',
-            'elevation_loss_m', 'cum_elevation_loss_m', 'uphill_gradient', 
-            'downhill_gradient', 'cum_dist_elev_gain', 'cum_dist_prev_elev_gain', 
-            'cum_dist_up_grad'
+            'elevation_loss_m', 'prev_km_elevation_loss', 'cum_elevation_loss_m', 'uphill_gradient', 
+            'downhill_gradient', 'cum_dist_elev_gain', 'cum_dist_elev_loss', 'cum_dist_prev_elev_gain', 'cum_dist_prev_elev_loss', 
+            'cum_dist_up_grad', 'cum_dist_down_grad'
         ]
         
         # Reorder existing columns

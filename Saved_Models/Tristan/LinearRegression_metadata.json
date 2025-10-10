@@ -8,15 +8,19 @@
     "prev_km_elevation_gain",
     "cum_elevation_gain_m",
     "elevation_loss_m",
+    "prev_km_elevation_loss",
     "cum_elevation_loss_m",
     "uphill_gradient",
     "downhill_gradient",
     "cum_dist_elev_gain",
+    "cum_dist_elev_loss",
     "cum_dist_prev_elev_gain",
-    "cum_dist_up_grad"
+    "cum_dist_prev_elev_loss",
+    "cum_dist_up_grad",
+    "cum_dist_down_grad"
   ],
-  "test_mae": 0.6281975238588177,
-  "test_rmse": 0.7680566234171184,
-  "test_r2": 0.13696433122431884,
+  "test_mae": 0.6299463651713618,
+  "test_rmse": 0.7770816306610636,
+  "test_r2": 0.1165630627151959,
   "best_params": {}
 }
