@@ -205,9 +205,14 @@ class PerformanceAnalytics:
                 "You were slower on downhills than expected - work on downhill running technique to maximize the benefit of descents."
             )
 
-        if (terrain['uphill'] and terrain['uphill']['avg_difference']) < 0.3 and (terrain['downhill'] and terrain['downhill']['avg_difference']) < 0.3:
+        if terrain['uphill'] and terrain['uphill']['avg_difference'] < 0.3:
             recommendations.append(
-                "You performed great on both uphills and downhills - excellent running!"
+                "You performed great on uphills - good strong running!"
+            )
+            
+        if terrain['downhill'] and terrain['downhill']['avg_difference'] < 0.3:
+            recommendations.append(
+                "You took advantage of downhills and saved yourself time - excellent!"
             )
         
         # Consistency recommendations

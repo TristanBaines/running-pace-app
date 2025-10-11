@@ -759,7 +759,7 @@ if __name__ == "__main__":
     print("=== Pace Prediction with Train/Validation/Test Split ===")
     
     # UPDATE YOUR FILE PATHS HERE
-    historic_csv = r'C:\\Users\\User\\Desktop\\SkripsieWebAppRepo\\running-pace-app\\LatestDataset_Cleaned_Removed_Anomaly_Runs_With_All_Features.csv'
+    historic_csv = r'C:\\Users\\User\\Desktop\\SkripsieWebAppRepo\\running-pace-app\\FinalDataset\\LatestDataset_Cleaned_Removed_Anomaly_Runs_With_All_Features.csv'
     new_route_csv = r'D:\\Most Recent\\JonkershoekGate.csv'
     
     # Optional: specify custom output path
@@ -812,6 +812,6 @@ if __name__ == "__main__":
     print(f"\nComplete! Results saved to: {output_path}")
 
     # Save the best model (Linear Regression)
-    print("\n3. Saving the best model (Linear Regression)...")
-    model_dir = r'C:\\Users\\User\\Desktop\\SkripsieWebAppRepo\\Saved_Models'
-    predictor.save_best_model(model_dir, 'LinearRegression')
+    #print("\n3. Saving the best model (Linear Regression)...")
+    #model_dir = r'C:\\Users\\User\\Desktop\\SkripsieWebAppRepo\\Saved_Models'
+    #predictor.save_best_model(model_dir, 'LinearRegression')

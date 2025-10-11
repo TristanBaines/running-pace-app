@@ -133,16 +133,16 @@ def process_gpx_route_with_enhanced_features(gpx_path, output_path=None, segment
             'prev_km_elevation_gain': prev_elevation_gain,
             'cum_elevation_gain_m': cum_elevation_gain_m,
             'elevation_loss_m': elev_loss,
-            'prev_km_elevation_loss': prev_elevation_loss,  # NEW
+            'prev_km_elevation_loss': prev_elevation_loss,  
             'cum_elevation_loss_m': cum_elevation_loss_m,
             'uphill_gradient': uphill_gradient,
             'downhill_gradient': downhill_gradient,
             'cum_dist_elev_gain': cum_dist_elev_gain,
-            'cum_dist_elev_loss': cum_dist_elev_loss,  # NEW
+            'cum_dist_elev_loss': cum_dist_elev_loss,  
             'cum_dist_prev_elev_gain': cum_dist_prev_elev_gain,
-            'cum_dist_prev_elev_loss': cum_dist_prev_elev_loss,  # NEW
+            'cum_dist_prev_elev_loss': cum_dist_prev_elev_loss,  
             'cum_dist_up_grad': cum_dist_up_grad,
-            'cum_dist_down_grad': cum_dist_down_grad,  # NEW
+            'cum_dist_down_grad': cum_dist_down_grad,  
         }
         
         data.append(segment_record)
