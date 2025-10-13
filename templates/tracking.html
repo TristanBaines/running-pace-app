@@ -71,10 +71,10 @@
             if (!('vibrate' in navigator)) return;
             
             const patterns = {
-                'short': 50,           // Quick tap
-                'medium': 100,         // Normal press
-                'long': 200,           // Strong press
-                'double': [50, 100, 50], // Two quick pulses
+                'short': 100,           // Quick tap
+                'medium': 200,         // Normal press
+                'long': 300,           // Strong press
+                'double': [100, 100, 100], // Two quick pulses
                 'success': [50, 50, 50]  // Three quick pulses for success
             };
     
@@ -177,7 +177,7 @@
         }
 
         function togglePause() {
-            hapticFeedback('medium');
+            hapticFeedback('long');
 
             if (isPaused) {
                 // Resume
