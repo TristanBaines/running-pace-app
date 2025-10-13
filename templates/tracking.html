@@ -66,6 +66,21 @@
         const elevationGains = {{ elevation_gains | tojson | safe }};
         const elevationLosses = {{ elevation_losses | tojson | safe }};
 
+        function hapticFeedback(pattern = 'short') {
+            // Check if the device supports vibration
+            if (!('vibrate' in navigator)) return;
+            
+            const patterns = {
+                'short': 50,           // Quick tap
+                'medium': 100,         // Normal press
+                'long': 200,           // Strong press
+                'double': [50, 100, 50], // Two quick pulses
+                'success': [50, 50, 50]  // Three quick pulses for success
+            };
+    
+            navigator.vibrate(patterns[pattern] || 50);
+        }
+
         function formatTime(seconds) {
             const hours = Math.floor(seconds / 3600);
             const minutes = Math.floor((seconds % 3600) / 60);
@@ -98,6 +113,7 @@
         }
 
         function startRun() {
+            hapticFeedback('long');
             fetch('/start_run', { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
@@ -118,6 +134,7 @@
         }
 
         function logSplit() {
+            hapticFeedback('double');
             fetch('/log_split', { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
@@ -160,6 +177,8 @@
         }
 
         function togglePause() {
+            hapticFeedback('medium');
+
             if (isPaused) {
                 // Resume
                 fetch('/resume_run', { method: 'POST' })
