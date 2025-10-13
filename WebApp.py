@@ -8,6 +8,7 @@ from StandAlonePacePredictor import PacePredictor
 from CoachingMethods import get_coached_paces, SimplePaceCoaching, decimal_minutes_to_pace_format, decimal_minutes_to_time_format
 from RunTracker import RunTracker
 from Analytics import PerformanceAnalytics
+from PartialSegmentHandler import PartialSegmentHandler # !!!!!!!!
 
 app = Flask(__name__)
 app.jinja_env.globals.update(abs=abs) # allows the use of the abs() function in any templates
@@ -60,11 +61,45 @@ def predict():
         route_csv_path = os.path.join(UPLOAD_FOLDER, "New_Route.csv")
         route_df = process_gpx_route_with_enhanced_features(gpx_path, output_path=route_csv_path)
 
-        # --- Step 3: Run model prediction with selected model ---
+        # Step 2: NEW - Handle partial segments !!!!!!!
+        handler = PartialSegmentHandler(min_full_segment_distance=0.9)
+        partial_mask = handler.identify_partial_segments(route_df)
+
+        if partial_mask.any(): # !!!!!!!!!
+            partial_count = partial_mask.sum()
+            partial_distances = route_df.loc[partial_mask, 'segment_distance_km'].tolist()
+            warning_msg = f"Route contains {partial_count} partial segment(s): "
+            warning_msg += ", ".join([f"{d:.2f}km" for d in partial_distances])
+            warning_msg += ". Predictions will be adjusted for accuracy."
+            #flash(warning_msg, 'info')
+
+        # Step 3: Normalize features for partial segments !!!!!!!
+        route_df_normalized = handler.normalize_features_for_prediction(route_df)
+        normalized_csv_path = os.path.join(UPLOAD_FOLDER, "New_Route_Normalized.csv")
+        route_df_normalized.to_csv(normalized_csv_path, index=False)
+
+        # --- Step 3: Run model prediction with selected model --- !!!!!!!!!!
         model_dir = os.path.join(MODEL_DIR, selected_model)
         predictor = PacePredictor(model_dir)
-        predictions, pred_csv = predictor.predict_route(route_csv_path, output_csv_path=os.path.join(UPLOAD_FOLDER, "Predicted_Paces.csv"), create_plots=False)
-        route_data = pd.read_csv(pred_csv)
+        predictions, _ = predictor.predict_route(
+            normalized_csv_path, 
+            output_csv_path=os.path.join(UPLOAD_FOLDER, "Predicted_Paces_Temp.csv"), 
+            create_plots=False
+        )
+
+        #predictions, pred_csv = predictor.predict_route(route_csv_path, output_csv_path=os.path.join(UPLOAD_FOLDER, "Predicted_Paces.csv"), create_plots=False)
+        #route_data = pd.read_csv(pred_csv)
+
+        # Step 5: Denormalize predictions !!!!!!!!!!!
+        results_handler = handler.denormalize_predictions(predictions, route_df)
+
+        # Step 6: Add predictions to ORIGINAL route data (not normalized) !!!!!!!!!
+        route_df['predicted_pace'] = results_handler['predicted_paces']
+
+        # Save with predictions !!!!!!!
+        final_pred_csv = os.path.join(UPLOAD_FOLDER, "Predicted_Paces.csv")
+        route_df.to_csv(final_pred_csv, index=False)
+        route_data = pd.read_csv(final_pred_csv)
 
         # --- Step 4: Coaching methods ---
         selected_methods = request.form.getlist("methods")
