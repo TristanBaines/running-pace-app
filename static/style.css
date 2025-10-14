@@ -640,3 +640,20 @@ canvas {
     color: #856404;
     font-weight: 500;
 }
+
+.button-purple {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Purple */
+    color: white;
+    border: none;
+    padding: 20px 20px;
+    border-radius: 20px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.button-purple:hover {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Darker purple on hover */
+    color: white;
+}

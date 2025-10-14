@@ -10,9 +10,9 @@
     
     <div class="info-box">
         <p><strong>Segment:</strong> <span id="current-segment">0</span> / <span id="total-segments">{{ total_segments }}</span></p>
-        <!--<p style="font-weight: bold; color: #3498db">
+        <p style="font-weight: bold; color: #3498db">
             <strong>Distance:</strong> <span id="segment-distance">1.0</span> km
-        </p>-->
+        </p>
         <p><strong>Elevation Gain:</strong> <span id="elevation-gain">--</span> m | <strong>Elevation Loss:</strong> <span id="elevation-loss">--</span> m</p>
         <p style="font-size: 32px; font-weight: bold; color: #3498db; margin-top: 15px;">
         <strong>Segment Predicted Pace:</strong> <span id="predicted-pace">--:--</span> min/km
@@ -228,8 +228,8 @@
                 let distance = segmentDistances[currentSegment];
                 if (distance >= 0.89) {
                     distance = 1.0;  // Round up if close to 1km
-                }
-                document.getElementById('segment-distance').textContent = distance.toFixed(1);
+                } else distance = segmentDistances[currentSegment];
+                document.getElementById('segment-distance').textContent = distance.toFixed(2);
                 document.getElementById('predicted-pace').textContent = formatPace(predictedPaces[currentSegment]);
                 document.getElementById('elevation-gain').textContent = elevationGains[currentSegment].toFixed(1);
                 document.getElementById('elevation-loss').textContent = elevationLosses[currentSegment].toFixed(1);

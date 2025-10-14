@@ -126,7 +126,7 @@ def predict():
                 if np.allclose(push_flats_paces, prev_method_paces, atol=1e-4):
                     notes.append("Note: The 'Push Flats' method resulted in no changes — you are already running faster than your baseline pace.")
         
-        total_distance = round(route_data["cum_distance_km"].max(), 2)
+        total_distance = round(route_data["segment_distance_km"].sum(), 2)
 
         # Filter totals to only show Uncoached and Final plans
         filtered_totals = {k: v for k, v in totals_summary.items() if k in ["Uncoached Pace", "Final Plan"]}
@@ -151,6 +151,9 @@ def start_tracking():
     # Load the coached paces CSV
     coached_csv = os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv")
     route_data = pd.read_csv(coached_csv)
+
+    if "Final Plan_pace_min_per_km" not in route_data.columns:
+        selected_plan = "Uncoached Pace"
 
     # DEBUG: Print all column names
     print("=== CSV COLUMNS ===")
@@ -177,7 +180,9 @@ def start_tracking():
                           predicted_paces=predicted_paces,
                           elevation_gains=elevation_gains,
                           elevation_losses=elevation_losses,
-                          segment_distances=segment_distances)
+                          segment_distances=route_data['segment_distance_km'].tolist(),
+                          total_distance=round(route_data['segment_distance_km'].sum(), 2)
+    )
 
 
 @app.route("/pause_run", methods=["POST"])
