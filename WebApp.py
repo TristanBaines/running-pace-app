@@ -8,7 +8,6 @@ from StandAlonePacePredictor import PacePredictor
 from CoachingMethods import get_coached_paces, SimplePaceCoaching, decimal_minutes_to_pace_format, decimal_minutes_to_time_format
 from RunTracker import RunTracker
 from Analytics import PerformanceAnalytics
-from PartialSegmentHandler import PartialSegmentHandler # !!!!!!!!
 
 app = Flask(__name__)
 app.jinja_env.globals.update(abs=abs) # allows the use of the abs() function in any templates
@@ -61,45 +60,11 @@ def predict():
         route_csv_path = os.path.join(UPLOAD_FOLDER, "New_Route.csv")
         route_df = process_gpx_route_with_enhanced_features(gpx_path, output_path=route_csv_path)
 
-        # Step 2: NEW - Handle partial segments !!!!!!!
-        handler = PartialSegmentHandler(min_full_segment_distance=0.9)
-        partial_mask = handler.identify_partial_segments(route_df)
-
-        if partial_mask.any(): # !!!!!!!!!
-            partial_count = partial_mask.sum()
-            partial_distances = route_df.loc[partial_mask, 'segment_distance_km'].tolist()
-            warning_msg = f"Route contains {partial_count} partial segment(s): "
-            warning_msg += ", ".join([f"{d:.2f}km" for d in partial_distances])
-            warning_msg += ". Predictions will be adjusted for accuracy."
-            #flash(warning_msg, 'info')
-
-        # Step 3: Normalize features for partial segments !!!!!!!
-        route_df_normalized = handler.normalize_features_for_prediction(route_df)
-        normalized_csv_path = os.path.join(UPLOAD_FOLDER, "New_Route_Normalized.csv")
-        route_df_normalized.to_csv(normalized_csv_path, index=False)
-
-        # --- Step 3: Run model prediction with selected model --- !!!!!!!!!!
+        # --- Step 3: Run model prediction with selected model ---
         model_dir = os.path.join(MODEL_DIR, selected_model)
         predictor = PacePredictor(model_dir)
-        predictions, _ = predictor.predict_route(
-            normalized_csv_path, 
-            output_csv_path=os.path.join(UPLOAD_FOLDER, "Predicted_Paces_Temp.csv"), 
-            create_plots=False
-        )
-
-        #predictions, pred_csv = predictor.predict_route(route_csv_path, output_csv_path=os.path.join(UPLOAD_FOLDER, "Predicted_Paces.csv"), create_plots=False)
-        #route_data = pd.read_csv(pred_csv)
-
-        # Step 5: Denormalize predictions !!!!!!!!!!!
-        results_handler = handler.denormalize_predictions(predictions, route_df)
-
-        # Step 6: Add predictions to ORIGINAL route data (not normalized) !!!!!!!!!
-        route_df['predicted_pace'] = results_handler['predicted_paces']
-
-        # Save with predictions !!!!!!!
-        final_pred_csv = os.path.join(UPLOAD_FOLDER, "Predicted_Paces.csv")
-        route_df.to_csv(final_pred_csv, index=False)
-        route_data = pd.read_csv(final_pred_csv)
+        predictions, pred_csv = predictor.predict_route(route_csv_path, output_csv_path=os.path.join(UPLOAD_FOLDER, "Predicted_Paces.csv"), create_plots=False)
+        route_data = pd.read_csv(pred_csv)
 
         # --- Step 4: Coaching methods ---
         selected_methods = request.form.getlist("methods")
@@ -132,10 +97,46 @@ def predict():
         # Build totals summary (formatted as h m s)
         totals_summary = {method: data["total_time_display"] for method, data in formatted_results.items()}
         
+        notes = []
+
+        # Check if there are any uphill or downhill segments
+        if "Push Uphills" in selected_methods:
+            net_elev = route_data['elevation_gain_m'] - route_data['elevation_loss_m']
+            gradient = (net_elev / (route_data['segment_distance_km'] * 1000)) * 100
+            if not (gradient > 1).any():
+                notes.append("Note: The 'Push Uphills' method was selected, but there are no uphill segments on this route.")
+
+        if "Push Downhills" in selected_methods:
+            net_elev = route_data['elevation_gain_m'] - route_data['elevation_loss_m']
+            gradient = (net_elev / (route_data['segment_distance_km'] * 1000)) * 100
+            if not (gradient < -1).any():
+                notes.append("Note: The 'Push Downhills' method was selected, but there are no downhill segments on this route.")
+
+        if "Push Flats" in selected_methods:
+            previous_method = None
+            for method in selected_methods:
+                if method == "Push Flats":
+                    break
+                previous_method = method
+            
+            if previous_method:
+                push_flats_paces = results["Push Flats"]["paces"]
+                prev_method_paces = results[previous_method]["paces"]
+
+                if np.allclose(push_flats_paces, prev_method_paces, atol=1e-4):
+                    notes.append("Note: The 'Push Flats' method resulted in no changes — you are already running faster than your baseline pace.")
+        
+        total_distance = round(route_data["cum_distance_km"].max(), 2)
+
+        # Filter totals to only show Uncoached and Final plans
+        filtered_totals = {k: v for k, v in totals_summary.items() if k in ["Uncoached Pace", "Final Plan"]}
+        
         return render_template(
             "results.html", 
             tables=[results_df.to_html(classes="data", index=False, escape = False)], 
-            totals=totals_summary
+            totals=filtered_totals,
+            total_distance=total_distance,
+            notes=notes
         )
     
     except Exception as e:
@@ -168,12 +169,15 @@ def start_tracking():
     # Get elevation data for display
     elevation_gains = route_data['elevation_gain_m'].tolist()
     elevation_losses = route_data['elevation_loss_m'].tolist()
+
+    segment_distances = route_data['segment_distance_km'].tolist()
     
     return render_template("tracking.html", 
                           total_segments=tracker.total_segments,
                           predicted_paces=predicted_paces,
                           elevation_gains=elevation_gains,
-                          elevation_losses=elevation_losses)
+                          elevation_losses=elevation_losses,
+                          segment_distances=segment_distances)
 
 
 @app.route("/pause_run", methods=["POST"])
@@ -318,7 +322,8 @@ def deeper_analytics():
         uncoached_paces=uncoached_paces,
         elevation_gains=elevation_gains,
         elevation_losses=elevation_losses,
-        coaching_methods=coaching_methods
+        coaching_methods=coaching_methods,
+        segment_distances=route_data['segment_distance_km'].tolist()
     )
     
     # Generate full report

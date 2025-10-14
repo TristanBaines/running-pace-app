@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple
 class PerformanceAnalytics:
     def __init__(self, actual_paces: List[float], coached_paces: List[float], 
                  uncoached_paces: List[float], elevation_gains: List[float], 
-                 elevation_losses: List[float], coaching_methods: List[str]):
+                 elevation_losses: List[float], coaching_methods: List[str], segment_distances: List[float] = None):
         """
         Initialize analytics with run data.
         
@@ -21,6 +21,7 @@ class PerformanceAnalytics:
             elevation_gains: Elevation gain per segment (meters)
             elevation_losses: Elevation loss per segment (meters)
             coaching_methods: List of coaching methods applied
+            self.segment_distances = np.array(segment_distances) if segment_distances else np.ones(len(actual_paces))
         """
         self.actual_paces = np.array(actual_paces)
         self.coached_paces = np.array(coached_paces)
@@ -28,11 +29,13 @@ class PerformanceAnalytics:
         self.elevation_gains = np.array(elevation_gains)
         self.elevation_losses = np.array(elevation_losses)
         self.coaching_methods = coaching_methods
+        self.segment_distances = np.array(segment_distances) if segment_distances else np.ones(len(actual_paces))
         
         # Calculate derived metrics
         self.net_elevation = self.elevation_gains - self.elevation_losses
-        self.segment_distances = np.ones(len(actual_paces))  # Assuming 1km segments
+        #self.segment_distances = np.ones(len(actual_paces))  # Assuming 1km segments
         self.pace_differences = self.actual_paces - self.coached_paces
+
         
     def analyze_terrain_performance(self) -> Dict:
         """

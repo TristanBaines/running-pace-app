@@ -104,9 +104,13 @@ class RunTracker:
         
         # Get predicted pace for this segment (in minutes)
         predicted_pace = float(self.predicted_paces[self.current_segment])
+
+        segment_distance = float(self.route_data.iloc[self.current_segment]['segment_distance_km'])
+
+        actual_pace_per_km = segment_time_min / segment_distance if segment_distance > 0 else segment_time_min
         
         # Calculate difference
-        pace_diff = segment_time_min - predicted_pace
+        pace_diff = actual_pace_per_km - predicted_pace
         
         # Store the split
         self.actual_splits.append(segment_time_sec)
@@ -116,7 +120,7 @@ class RunTracker:
         split_data = {
             "segment": int(self.current_segment + 1),
             "actual_time_sec": float(segment_time_sec),
-            "actual_pace_min": round(float(segment_time_min), 2),
+            "actual_pace_min": round(float(actual_pace_per_km), 2),
             "predicted_pace_min": round(predicted_pace, 2),
             "difference_sec": round(float(pace_diff * 60), 2),
             "faster": bool(pace_diff < 0),  # Explicit conversion
@@ -169,71 +173,54 @@ class RunTracker:
             return {"error": "Run not completed yet"}
         
         total_actual_time = sum(self.actual_splits)
-        # total_predicted_time = sum(self.predicted_paces) * 60  # Convert to seconds
         
-        actual_paces = [split / 60 for split in self.actual_splits]  # Convert to minutes
-
-        # DEBUG: Print all columns to see what exists
-        print("=== CHECKING COLUMNS FOR SUMMARY ===")
-        print(f"All columns: {self.route_data.columns.tolist()}")
-
-        # CORRECTED: Use the actual column names from the CSV
+        # Calculate actual pace PER KM for each segment
+        actual_paces_per_km = []
+        for i, split_time_sec in enumerate(self.actual_splits):
+            segment_distance = float(self.route_data.iloc[i]['segment_distance_km'])
+            pace_per_km = (split_time_sec / 60) / segment_distance  # min/km
+            actual_paces_per_km.append(pace_per_km)
+        
+        # Get column names
         final_plan_col = "Final Plan_pace_min_per_km"
-        uncoached_pace_col = "Uncoached Pace_pace_min_per_km"  # FIXED: Was "Predicted Pace_pace_min_per_km"
-
+        uncoached_pace_col = "Uncoached Pace_pace_min_per_km"
         has_coached_plan = final_plan_col in self.route_data.columns
-
-        print(f"Has Final Plan column: {has_coached_plan}")
-        print(f"Has Predicted Pace column: {uncoached_pace_col in self.route_data.columns}")
-        print("====================================")
         
         summary = {
             "total_actual_time_sec": total_actual_time,
-            #"total_predicted_time_sec": total_predicted_time,
-            #"total_difference_sec": total_actual_time - total_predicted_time,
-            "actual_paces_min": actual_paces,
-            #"predicted_paces_min": self.predicted_paces.tolist(),
-            #"segments_faster": sum(1 for i, split in enumerate(self.actual_splits) 
-                                  #if split / 60 < self.predicted_paces[i]),
-            #"segments_slower": sum(1 for i, split in enumerate(self.actual_splits) 
-                                  #if split / 60 > self.predicted_paces[i]),
+            "actual_paces_min": actual_paces_per_km,  # FIXED: Now pace per km
             "segments_faster": 0,
             "segments_slower": 0,
-            "has_coached_plan": has_coached_plan
+            "has_coached_plan": has_coached_plan,
+            "segment_distances": self.route_data['segment_distance_km'].tolist()  # NEW
         }
 
         if has_coached_plan:
-
-            # Get both uncoached and coached paces
-            uncoached_paces = self.route_data[uncoached_pace_col].values # FIXED
+            uncoached_paces = self.route_data[uncoached_pace_col].values
             coached_paces = self.route_data[final_plan_col].values
 
-            print(f"Uncoached paces: {uncoached_paces[:3]}...")
-            print(f"Coached paces: {coached_paces[:3]}...")
+            summary["uncoached_paces"] = uncoached_paces.tolist()
+            summary["coached_paces"] = coached_paces.tolist()
+            summary["total_predicted_time_sec"] = sum(coached_paces * self.route_data['segment_distance_km'].values) * 60  # FIXED
 
-            summary["uncoached_paces"] = uncoached_paces.tolist() #self.route_data["Predicted Pace_pace_min_per_km"].values.tolist()
-            summary["coached_paces"] = coached_paces.tolist() #self.predicted_paces.tolist()  # This is the Final Plan
-            summary["total_predicted_time_sec"] = sum(coached_paces) * 60
-
-            # Calculate differences against coached plan
-            for i, split in enumerate(self.actual_splits):
-                if split / 60 < coached_paces[i]:
+            # FIXED: Compare pace to pace (both in min/km)
+            for i, actual_pace in enumerate(actual_paces_per_km):
+                if actual_pace < coached_paces[i]:
                     summary["segments_faster"] += 1
                 else:
                     summary["segments_slower"] += 1
-        else: 
-            # Only uncoached prediction exists
-            uncoached_paces = self.route_data[uncoached_pace_col].values # FIXED
+        else:
+            uncoached_paces = self.route_data[uncoached_pace_col].values
             summary["predicted_paces_min"] = uncoached_paces.tolist()
-            summary["total_predicted_time_sec"] = sum(uncoached_paces) * 60
+            summary["total_predicted_time_sec"] = sum(uncoached_paces * self.route_data['segment_distance_km'].values) * 60  # FIXED
             
-            # Calculate differences against prediction
-            for i, split in enumerate(self.actual_splits):
-                if split / 60 < uncoached_paces[i]:
+            # FIXED: Compare pace to pace
+            for i, actual_pace in enumerate(actual_paces_per_km):
+                if actual_pace < uncoached_paces[i]:
                     summary["segments_faster"] += 1
                 else:
                     summary["segments_slower"] += 1
         
         summary["total_difference_sec"] = total_actual_time - summary["total_predicted_time_sec"]
-    
+
         return summary

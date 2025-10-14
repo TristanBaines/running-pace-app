@@ -6,10 +6,22 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Your Pace Plans</h1>
+    <h1>Your Pace Plans for your {{ total_distance }} km Run</h1>
 
-    <h2>Uncoached and Coached Paces per Segment</h2>
+    <h2>Uncoached and Coached Pace Plans</h2>
+
     {{ tables[0]|safe }}
+
+        {% if notes %}
+        <div class="notes-container">
+            {% for note in notes %}
+                <div class="note-box">
+                    <span class="note-icon">⚠️</span>
+                    <span class="note-text">{{ note }}</span>
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
     <h2>Finishing Times of each Plan</h2>
     <table class="data">
@@ -29,11 +41,10 @@
         <form action="/start_tracking" method="post">
             <label>Select the Pace Plan you would like to Follow:</label>
             <select name="selected_plan">
-                {% for method in totals.keys() %}
-                <option value="{{ method }}">{{ method }}</option>
-                {% endfor %}
+                <option value="Uncoached Pace">Uncoached Pace</option>
+                <option value="Final Plan">Final Plan</option>
             </select>
-            <button type="submit" class="button-success">Start Live Tracking</button>
+            <button type="submit" class="button-success">Start Live Run Tracking</button>
         </form>
 
         <form action="{{ url_for('index') }}" method="get">

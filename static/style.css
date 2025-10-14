@@ -613,3 +613,30 @@ canvas {
     padding: 25px 40px;
     min-height: 80px;
 }
+
+/* Notes and feedback box styling */
+.notes-container {
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+.note-box {
+    background-color: #fff3cd;
+    border: 1px solid #ffeeba;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.note-icon {
+    font-size: 1.2em;
+    margin-right: 10px;
+}
+
+.note-text {
+    color: #856404;
+    font-weight: 500;
+}
