@@ -17,11 +17,7 @@
         </div>
         <div class="stat-card">
             <div class="stat-label">
-                {% if summary.has_coached_plan %}
-                Coached Plan Time
-                {% else %}
-                Total Uncoached Time
-                {% endif %}
+                {{ session['selected_plan'] }} Time
             </div>
             <div class="stat-value">{{ summary.total_predicted_time_formatted }}</div>
         </div>

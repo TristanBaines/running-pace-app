@@ -201,7 +201,7 @@ class RunTracker:
 
             summary["uncoached_paces"] = uncoached_paces.tolist()
             summary["coached_paces"] = coached_paces.tolist()
-            summary["total_predicted_time_sec"] = sum(coached_paces * self.route_data['segment_distance_km'].values) * 60  # FIXED
+            summary["total_predicted_time_sec"] = 0
 
             # FIXED: Compare pace to pace (both in min/km)
             for i, actual_pace in enumerate(actual_paces_per_km):
@@ -212,7 +212,7 @@ class RunTracker:
         else:
             uncoached_paces = self.route_data[uncoached_pace_col].values
             summary["predicted_paces_min"] = uncoached_paces.tolist()
-            summary["total_predicted_time_sec"] = sum(uncoached_paces * self.route_data['segment_distance_km'].values) * 60  # FIXED
+            summary["total_predicted_time_sec"] = 0
             
             # FIXED: Compare pace to pace
             for i, actual_pace in enumerate(actual_paces_per_km):

@@ -260,13 +260,15 @@ class SimplePaceCoaching:
             if isinstance(data, dict) and "paces" in data:
                 paces = data["paces"]
                 total_time = data["total_time"]
+                total_time_sec = total_time * 60
                 
                 formatted_results[method] = {
                     "avg_pace_display": decimal_minutes_to_pace_format(paces.mean()),
                     "total_time_display": decimal_minutes_to_time_format(total_time),
                     "paces_display": [decimal_minutes_to_pace_format(p) for p in paces],
                     "raw_paces": paces,
-                    "raw_total_time": total_time
+                    "raw_total_time": total_time,
+                    "total_time_seconds": total_time_sec
                 }
         
         return formatted_results

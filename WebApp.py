@@ -89,6 +89,11 @@ def predict():
         coach = SimplePaceCoaching()
         formatted_results = coach.format_results_for_display(results)
 
+        session['plan_total_times'] = {
+            method: data["total_time_seconds"] for method, data in formatted_results.items()
+        }
+
+
         # Build per-segment DataFrame (paces formatted as mm:ss)
         results_df = pd.DataFrame({"Segment": route_data["segment_km"]})
         for method_name, data in formatted_results.items():
@@ -96,6 +101,41 @@ def predict():
 
         # Build totals summary (formatted as h m s)
         totals_summary = {method: data["total_time_display"] for method, data in formatted_results.items()}
+
+        # Save numeric total times (in seconds) to ensure consistency in later pages.
+        # Prefer numeric totals from the raw `results` dict (results[method]['total_time'] is in minutes),
+        # otherwise fall back to any available numeric field in formatted_results.
+        plan_total_times = {}
+        for method, fdata in formatted_results.items():
+            total_seconds = 0
+
+            # Prefer the numeric total from the coaching results (minutes -> seconds)
+            if method in results and isinstance(results[method], dict) and 'total_time' in results[method]:
+                try:
+                    total_seconds = float(results[method]['total_time']) * 60.0
+                except Exception:
+                    total_seconds = 0
+
+            # Fallback: if format_results_for_display returned a raw total time in minutes
+            elif isinstance(fdata, dict) and 'raw_total_time' in fdata:
+                try:
+                    total_seconds = float(fdata['raw_total_time']) * 60.0
+                except Exception:
+                    total_seconds = 0
+
+            # Fallback: if it provided total_time_seconds already
+            elif isinstance(fdata, dict) and 'total_time_seconds' in fdata:
+                try:
+                    total_seconds = float(fdata['total_time_seconds'])
+                except Exception:
+                    total_seconds = 0
+
+            # Final fallback: leave as 0 so it's safe to read later
+            plan_total_times[method] = total_seconds
+
+        session['plan_total_times'] = plan_total_times
+
+
         
         notes = []
 
@@ -151,6 +191,28 @@ def start_tracking():
     # Load the coached paces CSV
     coached_csv = os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv")
     route_data = pd.read_csv(coached_csv)
+
+    plan_totals = session.get('plan_total_times', {})
+    selected_plan_time_sec = None
+
+    if selected_plan in plan_totals:
+        selected_plan_time_sec = plan_totals[selected_plan]
+
+    session['selected_plan'] = selected_plan
+    session['selected_plan_time_sec'] = selected_plan_time_sec
+
+    print(f"[DEBUG] Selected plan: {selected_plan}, Total predicted time (sec): {selected_plan_time_sec}")
+
+
+
+    # Store chosen plan and its total predicted time for later consistency
+    if selected_plan == "Final Plan" and "Final Plan_pace_min_per_km" in route_data.columns:
+        total_pred_time = sum(route_data["Final Plan_pace_min_per_km"] * route_data["segment_distance_km"]) * 60
+    else:
+        total_pred_time = sum(route_data["Uncoached Pace_pace_min_per_km"] * route_data["segment_distance_km"]) * 60
+
+    session['selected_plan'] = selected_plan
+    session['total_predicted_time_sec'] = total_pred_time
 
     if "Final Plan_pace_min_per_km" not in route_data.columns:
         selected_plan = "Uncoached Pace"
@@ -217,6 +279,12 @@ def log_split():
     tracker = active_trackers[tracker_id]
     return tracker.log_km_split()
 
+
+
+
+
+
+
 @app.route("/run_summary")
 def run_summary():
     tracker_id = session.get('tracker_id')
@@ -225,6 +293,28 @@ def run_summary():
     
     tracker = active_trackers[tracker_id]
     summary = tracker.get_run_summary()
+
+    # Override predicted time with the one saved in session (ensures consistency with Results page)
+    stored_pred_time = session.get('selected_plan_time_sec')
+
+    if stored_pred_time is not None:
+        # Stored value should already be in seconds (we store seconds in session at predict/start_tracking)
+        try:
+            summary['total_predicted_time_sec'] = float(stored_pred_time)
+        except Exception:
+            # Fallback: leave whatever get_run_summary provided
+            pass
+
+    # IMPORTANT: recompute the total difference AFTER we potentially override the predicted time
+    # total_actual_time_sec is returned by get_run_summary() and is in seconds
+    if 'total_actual_time_sec' in summary and 'total_predicted_time_sec' in summary:
+        try:
+            summary['total_difference_sec'] = summary['total_actual_time_sec'] - summary['total_predicted_time_sec']
+        except Exception:
+            # If something unexpected (e.g., None), leave existing value
+            pass
+
+
 
     # DEBUG: Print to console to verify data
     print(f"Has coached plan: {summary.get('has_coached_plan')}")
@@ -238,7 +328,7 @@ def run_summary():
     # Format total times
     summary['total_actual_time_formatted'] = decimal_minutes_to_time_format(summary['total_actual_time_sec'] / 60)
     summary['total_predicted_time_formatted'] = decimal_minutes_to_time_format(summary['total_predicted_time_sec'] / 60)
-    
+
     # Format difference
     diff_sec = summary['total_difference_sec']
     diff_formatted = f"{'-' if diff_sec < 0 else '+'}{decimal_minutes_to_time_format(abs(diff_sec) / 60)}"
