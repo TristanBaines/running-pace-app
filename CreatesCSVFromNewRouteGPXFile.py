@@ -98,7 +98,7 @@ def process_gpx_route_with_enhanced_features(gpx_path, output_path=None, segment
     cum_elevation_gain_m = 0.0
     cum_elevation_loss_m = 0.0
     prev_elevation_gain = 0.0
-    prev_elevation_loss = 0.0  # NEW: Track previous elevation loss
+    prev_elevation_loss = 0.0
 
     for idx, seg in enumerate(route_segments):
         seg_distance = calculate_segment_distance(seg)
@@ -118,7 +118,7 @@ def process_gpx_route_with_enhanced_features(gpx_path, output_path=None, segment
         cum_dist_prev_elev_gain = cum_distance_km * prev_elevation_gain
         cum_dist_up_grad = cum_distance_km * uphill_gradient
 
-        # NEW: Calculate interaction features for LOSS
+        # Calculate interaction features for LOSS
         cum_dist_elev_loss = cum_distance_km * elev_loss
         cum_dist_prev_elev_loss = cum_distance_km * prev_elevation_loss
         cum_dist_down_grad = cum_distance_km * downhill_gradient
@@ -149,7 +149,7 @@ def process_gpx_route_with_enhanced_features(gpx_path, output_path=None, segment
         
         # Update previous values for next iteration
         prev_elevation_gain = elev_gain
-        prev_elevation_loss = elev_loss  # NEW
+        prev_elevation_loss = elev_loss
 
     # Convert to DataFrame
     df = pd.DataFrame(data)

@@ -14,31 +14,32 @@ app.jinja_env.globals.update(abs=abs) # allows the use of the abs() function in 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-MODEL_DIR = os.environ.get("MODEL_DIR", "Saved_Models")  # adjust to your model folder
+MODEL_DIR = os.environ.get("MODEL_DIR", "Saved_Models")
 
-# Add session secret key after app initialization
-app.secret_key = 'your-secret-key-here'  # Change this to a random string
+app.secret_key = 'secret-key'
 
-# Global tracker storage (in production, use database)
-active_trackers = {}
+active_trackers = {} # global tracker for storage in memory
 
-def allowed_file(filename):
+def allowed_file(filename): # only allow gpx files
     """Check if file has .gpx extension"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() == 'gpx'
 
-@app.route("/")
+@app.route("/") # home page
 def index():
     return render_template("index.html")
 
 
-@app.route("/predict", methods=["POST"])
+
+
+
+
+
+@app.route("/predict", methods=["POST"]) # generates the pace plans using the trained model
 def predict():
 
-    # Get selected model
-    selected_model = request.form.get("selected_model", "Tristan")
+    selected_model = request.form.get("selected_model", "Tristan") # loads selected model
 
-    # --- Step 1: Validate and Upload GPX ---
-    if 'gpx_file' not in request.files:
+    if 'gpx_file' not in request.files: # validate and upload GPX file and not allow other file types
         flash('No file uploaded', 'error')
         return redirect(url_for('index'))
     
@@ -53,27 +54,23 @@ def predict():
         return redirect(url_for('index'))
     
     gpx_path = os.path.join(UPLOAD_FOLDER, gpx_file.filename)
-    gpx_file.save(gpx_path)
+    gpx_file.save(gpx_path) # save file to uploads folder
 
     try:
-        # --- Step 2: GPX → CSV (features) ---
-        route_csv_path = os.path.join(UPLOAD_FOLDER, "New_Route.csv")
+        route_csv_path = os.path.join(UPLOAD_FOLDER, "New_Route.csv") # generate the csv file with the route features from the gpx file, ready for prediction
         route_df = process_gpx_route_with_enhanced_features(gpx_path, output_path=route_csv_path)
 
-        # --- Step 3: Run model prediction with selected model ---
-        model_dir = os.path.join(MODEL_DIR, selected_model)
+        model_dir = os.path.join(MODEL_DIR, selected_model) # predict paces using loaded trained model
         predictor = PacePredictor(model_dir)
         predictions, pred_csv = predictor.predict_route(route_csv_path, output_csv_path=os.path.join(UPLOAD_FOLDER, "Predicted_Paces.csv"), create_plots=False)
-        route_data = pd.read_csv(pred_csv)
+        route_data = pd.read_csv(pred_csv) # load saved csv with predicted paces
 
-        # --- Step 4: Coaching methods ---
-        selected_methods = request.form.getlist("methods")
+        selected_methods = request.form.getlist("methods") # get coaching methods
         session['coaching_methods'] = selected_methods # for saving the chosen coaching methods
-        target_time = request.form.get("target_time")
+        target_time = request.form.get("target_time") # for chosen time coaching method
         time_reduction = request.form.get("time_reduction")
 
-        # Build extra params if needed
-        extra_params = {}
+        extra_params = {} # extra parameters for chosen time coaching method
         if "Chosen Time" in selected_methods:
             fast_time_params = {}
             if target_time:
@@ -82,20 +79,16 @@ def predict():
                 fast_time_params["time_reduction"] = float(time_reduction)
             extra_params["Chosen Time"] = fast_time_params
 
-        results = get_coached_paces(route_data, selected_methods, output_csv_path=os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv"), extra_params=extra_params, model_name=selected_model)
+        results = get_coached_paces(route_data, selected_methods, output_csv_path=os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv"), extra_params=extra_params, model_name=selected_model) # get the coached paces after applying coaching methods to predicted paces
 
-        # --- Step 5: Build a DataFrame with all results ---
-
-        coach = SimplePaceCoaching()
-        formatted_results = coach.format_results_for_display(results)
+        coach = SimplePaceCoaching() # calling coaching class
+        formatted_results = coach.format_results_for_display(results) # format results for better viewing
 
         session['plan_total_times'] = {
-            method: data["total_time_seconds"] for method, data in formatted_results.items()
+            method: data["total_time_seconds"] for method, data in formatted_results.items() # for finishing times
         }
 
-
-        # Build per-segment DataFrame (paces formatted as mm:ss)
-        results_df = pd.DataFrame({"Segment": route_data["segment_km"]})
+        results_df = pd.DataFrame({"Segment": route_data["segment_km"]}) # dataframe for paces per coaching method per segment
         for method_name, data in formatted_results.items():
             results_df[method_name] = data["paces_display"]
 
