@@ -760,7 +760,7 @@ if __name__ == "__main__":
     
     # UPDATE YOUR FILE PATHS HERE
     historic_csv = r'C:\\Users\\User\\Desktop\\SkripsieWebAppRepo\\running-pace-app\\FinalDataset\\LatestDataset_Cleaned_Removed_Anomaly_Runs_With_All_Features.csv'
-    new_route_csv = r'D:\\Most Recent\\JonkershoekGate.csv'
+    new_route_csv = r'C:\\Desktop\\FirstTestRunRoute.csv'
     
     # Optional: specify custom output path
     output_csv = None  # Will auto-generate filename

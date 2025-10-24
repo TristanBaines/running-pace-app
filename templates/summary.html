@@ -54,7 +54,7 @@
                 <th>Uncoached Pace</th>
                 {% endif %}
                 <th>Actual Pace</th>
-                <th>Difference</th>
+                <th>Time Difference</th>
             </tr>
         </thead>
         <tbody>
@@ -81,28 +81,23 @@
         <a href="{{ url_for('index') }}" class="button button-primary">New Run</a>
     </div>
 
-    <!--<div class="text-center mt-20">
-        <a href="{{ url_for('index') }}" class="button button-primary">New Run</a>
-    </div>-->
-
     <script>
-        // Register the datalabels plugin
-        Chart.register(ChartDataLabels);
+        Chart.register(ChartDataLabels); // register the datalabels plugin
         
         const segments = {{ summary.segments | tojson | safe }};
         
-        // Convert decimal minutes to mm:ss format for display
-        function formatPaceForChart(decimalMinutes) {
+        function formatPaceForChart(decimalMinutes) { // convert decimal minutes to mm:ss format for display
             const minutes = Math.floor(decimalMinutes);
             const seconds = Math.round((decimalMinutes - minutes) * 60);
             return `${minutes}:${seconds.toString().padStart(2, '0')}`;
         }
         
-        // Prepare actual paces (already in minutes)
-        const actualPaces = {{ summary.actual_paces_min | tojson | safe }};
+        const actualPaces = {{ summary.actual_paces_min | tojson | safe }}; // prepare actual paces, already in minutes
         
-        {% if summary.has_coached_plan %}
-        // When coaching was used, show all three lines
+        console.log('[SUMMARY DEBUG] Actual paces:', actualPaces);
+        console.log('[SUMMARY DEBUG] Should be pace per km (e.g., 5.5 for 5:30/km)');
+        
+        {% if summary.has_coached_plan %} // when coaching was used, show all three lines
         const uncoachedPaces = {{ summary.uncoached_paces | tojson | safe }};
         const coachedPaces = {{ summary.coached_paces | tojson | safe }};
         
@@ -146,8 +141,7 @@
             }
         ];
         {% else %}
-        // When no coaching was used, show only two lines
-        const predictedPaces = {{ summary.predicted_paces_min | tojson | safe }};
+        const predictedPaces = {{ summary.predicted_paces_min | tojson | safe }}; // when no coaching was used, show only two lines
         
         const datasets = [
             {
@@ -239,25 +233,34 @@
             }
         });
 
-        // Create diverging bar chart showing difference from coached/predicted pace
-        const ctx2 = document.getElementById('difference-chart').getContext('2d');
+        
+        const ctx2 = document.getElementById('difference-chart').getContext('2d'); // create diverging bar chart showing difference from coached/predicted pace
+
+        const paceDifferences = {{ summary.differences | tojson | safe }};
         
         {% if summary.has_coached_plan %}
-        // Calculate differences: actual - coached (negative = faster than coached)
-        const paceDifferences = actualPaces.map((actual, i) => {
-            return (actual - coachedPaces[i]) * 60; // Convert to seconds
-        });
+        
+        // const paceDifferences = actualPaces.map((actual, i) => { // calculate differences: actual - coached (negative = faster than coached)
+            //const segmentDist = {{ summary.segment_distances | tojson | safe }}[i];
+            //const actualTime = actual * segmentDist * 60;  // actual time in seconds
+            //const coachedTime = coachedPaces[i] * segmentDist * 60;  // coached time in seconds
+          //  return actualTime - coachedTime;  // difference in seconds
+        //});
         const comparisonLabel = 'vs Coached Pace';
         {% else %}
-        // Calculate differences: actual - predicted (negative = faster than predicted)
-        const paceDifferences = actualPaces.map((actual, i) => {
-            return (actual - predictedPaces[i]) * 60; // Convert to seconds
-        });
+
+        //const paceDifferences = actualPaces.map((actual, i) => {
+        //    const segmentDist = {{ summary.segment_distances | tojson | safe }}[i];
+        //    const actualTime = actual * segmentDist * 60;  // actual time in seconds
+        //    const predictedTime = predictedPaces[i] * segmentDist * 60;  // predicted time in seconds
+         //   return actualTime - predictedTime;  // difference in seconds
+
+        //});
         const comparisonLabel = 'vs Uncoached Pace';
         {% endif %}
         
-        // Create colors array - green for negative (faster), red for positive (slower)
-        const barColors = paceDifferences.map(diff => diff < 0 ? 'rgba(39, 174, 96, 0.8)' : 'rgba(231, 76, 60, 0.8)');
+        
+        const barColors = paceDifferences.map(diff => diff < 0 ? 'rgba(39, 174, 96, 0.8)' : 'rgba(231, 76, 60, 0.8)'); // create colors array - green for negative (faster), red for positive (slower)
         const borderColors = paceDifferences.map(diff => diff < 0 ? 'rgb(39, 174, 96)' : 'rgb(231, 76, 60)');
         
         const differenceChart = new Chart(ctx2, {
@@ -265,7 +268,7 @@
             data: {
                 labels: segments,
                 datasets: [{
-                    label: `Pace Difference ${comparisonLabel}`,
+                    label: `Time Difference ${comparisonLabel}`, // MADE A CHANGE HERE
                     data: paceDifferences,
                     backgroundColor: barColors,
                     borderColor: borderColors,
@@ -299,12 +302,12 @@
                         display: true,
                         anchor: 'end',
                         align: function(context) {
-                            // Labels appear above positive bars, below negative bars
-                            return context.dataset.data[context.dataIndex] >= 0 ? 'top' : 'bottom';
+                        
+                            return context.dataset.data[context.dataIndex] >= 0 ? 'top' : 'bottom'; // labels appear above positive bars, below negative bars
                         },
                         formatter: function(value) {
-                            // Format as +/-Xs (e.g., "+15s" or "-8s")
-                            return (value > 0 ? '+' : '') + value.toFixed(0) + 's';
+                            
+                            return (value > 0 ? '+' : '') + value.toFixed(0) + 's'; // format as +/-Xs (e.g., "+15s" or "-8s")
                         },
                         color: '#2c3e50',
                         font: {
@@ -343,11 +346,11 @@
             }
         });
 
-        // Create elevation profile chart
-        const ctx3 = document.getElementById('elevation-chart').getContext('2d');
+        
+        const ctx3 = document.getElementById('elevation-chart').getContext('2d'); // create elevation profile chart
 
-        // Get elevation data from summary
-        const elevationGain = {{ summary.elevation_gain | tojson | safe }};
+        
+        const elevationGain = {{ summary.elevation_gain | tojson | safe }}; // get elevation data from summary
         const elevationLoss = {{ summary.elevation_loss | tojson | safe }};
         const netElevation = elevationGain.map((gain, i) => gain - elevationLoss[i]);
 
@@ -388,11 +391,11 @@
                         display: true,
                         anchor: 'end',
                         align: function(context) {
-                            // Labels appear above positive bars, below negative bars
+                            
                             return context.dataset.data[context.dataIndex] >= 0 ? 'top' : 'bottom';
                         },
                         formatter: function(value) {
-                            // Format as +/-X.Xm (e.g., "+15.3m" or "-8.7m")
+                            
                             return (value > 0 ? '+' : '') + value.toFixed(1) + 'm';
                         },
                         color: '#2c3e50',

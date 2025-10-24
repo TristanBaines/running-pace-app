@@ -92,38 +92,34 @@ def predict():
         for method_name, data in formatted_results.items():
             results_df[method_name] = data["paces_display"]
 
-        # Build totals summary (formatted as h m s)
-        totals_summary = {method: data["total_time_display"] for method, data in formatted_results.items()}
+        
+        totals_summary = {method: data["total_time_display"] for method, data in formatted_results.items()} # totals summary formatted as h m s
 
-        # Save numeric total times (in seconds) to ensure consistency in later pages.
-        # Prefer numeric totals from the raw `results` dict (results[method]['total_time'] is in minutes),
-        # otherwise fall back to any available numeric field in formatted_results.
         plan_total_times = {}
         for method, fdata in formatted_results.items():
             total_seconds = 0
 
-            # Prefer the numeric total from the coaching results (minutes -> seconds)
-            if method in results and isinstance(results[method], dict) and 'total_time' in results[method]:
+            
+            if method in results and isinstance(results[method], dict) and 'total_time' in results[method]: # numeric total from the coaching results
                 try:
                     total_seconds = float(results[method]['total_time']) * 60.0
                 except Exception:
                     total_seconds = 0
 
-            # Fallback: if format_results_for_display returned a raw total time in minutes
-            elif isinstance(fdata, dict) and 'raw_total_time' in fdata:
+            
+            elif isinstance(fdata, dict) and 'raw_total_time' in fdata: # if format_results_for_display returned a raw total time in minutes
                 try:
                     total_seconds = float(fdata['raw_total_time']) * 60.0
                 except Exception:
                     total_seconds = 0
 
-            # Fallback: if it provided total_time_seconds already
-            elif isinstance(fdata, dict) and 'total_time_seconds' in fdata:
+            
+            elif isinstance(fdata, dict) and 'total_time_seconds' in fdata: # if it provided total_time_seconds already
                 try:
                     total_seconds = float(fdata['total_time_seconds'])
                 except Exception:
                     total_seconds = 0
 
-            # Final fallback: leave as 0 so it's safe to read later
             plan_total_times[method] = total_seconds
 
         session['plan_total_times'] = plan_total_times
@@ -132,8 +128,8 @@ def predict():
         
         notes = []
 
-        # Check if there are any uphill or downhill segments
-        if "Push Uphills" in selected_methods:
+        
+        if "Push Uphills" in selected_methods: # check for any uphill or downhill segments
             net_elev = route_data['elevation_gain_m'] - route_data['elevation_loss_m']
             gradient = (net_elev / (route_data['segment_distance_km'] * 1000)) * 100
             if not (gradient > 1).any():
@@ -161,8 +157,8 @@ def predict():
         
         total_distance = round(route_data["segment_distance_km"].sum(), 2)
 
-        # Filter totals to only show Uncoached and Final plans
-        filtered_totals = {k: v for k, v in totals_summary.items() if k in ["Uncoached Pace", "Final Plan"]}
+        
+        filtered_totals = {k: v for k, v in totals_summary.items() if k in ["Uncoached Pace", "Final Plan"]} # filter totals to only show Uncoached and Final plans
         
         return render_template(
             "results.html", 
@@ -176,13 +172,16 @@ def predict():
         flash(f'Error processing GPX file: {str(e)}', 'error')
         return redirect(url_for('index'))
 
+
+
+
 @app.route("/start_tracking", methods=["POST"])
 def start_tracking():
     """Initialize tracking page with selected pace plan"""
     selected_plan = request.form.get("selected_plan", "Final Plan")
     
-    # Load the coached paces CSV
-    coached_csv = os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv")
+    
+    coached_csv = os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv") # load the coached paces CSV
     route_data = pd.read_csv(coached_csv)
 
     plan_totals = session.get('plan_total_times', {})
@@ -198,8 +197,8 @@ def start_tracking():
 
 
 
-    # Store chosen plan and its total predicted time for later consistency
-    if selected_plan == "Final Plan" and "Final Plan_pace_min_per_km" in route_data.columns:
+    
+    if selected_plan == "Final Plan" and "Final Plan_pace_min_per_km" in route_data.columns: # store selected plan and its total predicted time
         total_pred_time = sum(route_data["Final Plan_pace_min_per_km"] * route_data["segment_distance_km"]) * 60
     else:
         total_pred_time = sum(route_data["Uncoached Pace_pace_min_per_km"] * route_data["segment_distance_km"]) * 60
@@ -210,22 +209,22 @@ def start_tracking():
     if "Final Plan_pace_min_per_km" not in route_data.columns:
         selected_plan = "Uncoached Pace"
 
-    # DEBUG: Print all column names
-    print("=== CSV COLUMNS ===")
+    
+    print("=== CSV COLUMNS ===") # DEBUGGING
     print(route_data.columns.tolist())
     print("===================")
     
-    # Create tracker
-    tracker = RunTracker(route_data, selected_plan)
+    
+    tracker = RunTracker(route_data, selected_plan) # creates tracker
     session_id = str(time.time())
     active_trackers[session_id] = tracker
     session['tracker_id'] = session_id
     
-    # Get predicted paces for display
-    predicted_paces = tracker.predicted_paces.tolist()
+    
+    predicted_paces = tracker.predicted_paces.tolist() # predicted paces for display
 
-    # Get elevation data for display
-    elevation_gains = route_data['elevation_gain_m'].tolist()
+    
+    elevation_gains = route_data['elevation_gain_m'].tolist() # elevation data for display
     elevation_losses = route_data['elevation_loss_m'].tolist()
 
     segment_distances = route_data['segment_distance_km'].tolist()
@@ -240,6 +239,9 @@ def start_tracking():
     )
 
 
+
+
+
 @app.route("/pause_run", methods=["POST"])
 def pause_run():
     tracker_id = session.get('tracker_id')
@@ -247,12 +249,18 @@ def pause_run():
         return {"error": "No active tracker"}
     return active_trackers[tracker_id].pause_run()
 
+
+
+
 @app.route("/resume_run", methods=["POST"])
 def resume_run():
     tracker_id = session.get('tracker_id')
     if not tracker_id or tracker_id not in active_trackers:
         return {"error": "No active tracker"}
     return active_trackers[tracker_id].resume_run()
+
+
+
 
 @app.route("/start_run", methods=["POST"])
 def start_run():
@@ -262,6 +270,9 @@ def start_run():
     
     tracker = active_trackers[tracker_id]
     return tracker.start_run()
+
+
+
 
 @app.route("/log_split", methods=["POST"])
 def log_split():
@@ -287,74 +298,87 @@ def run_summary():
     tracker = active_trackers[tracker_id]
     summary = tracker.get_run_summary()
 
-    # Override predicted time with the one saved in session (ensures consistency with Results page)
-    stored_pred_time = session.get('selected_plan_time_sec')
+    
+    stored_pred_time = session.get('selected_plan_time_sec') # override predicted time with the one saved in session
 
     if stored_pred_time is not None:
-        # Stored value should already be in seconds (we store seconds in session at predict/start_tracking)
-        try:
+        
+        try: # value should already be in seconds
             summary['total_predicted_time_sec'] = float(stored_pred_time)
-        except Exception:
-            # Fallback: leave whatever get_run_summary provided
+        except Exception: # leave whatever get_run_summary provided
+            
             pass
 
-    # IMPORTANT: recompute the total difference AFTER we potentially override the predicted time
-    # total_actual_time_sec is returned by get_run_summary() and is in seconds
     if 'total_actual_time_sec' in summary and 'total_predicted_time_sec' in summary:
         try:
             summary['total_difference_sec'] = summary['total_actual_time_sec'] - summary['total_predicted_time_sec']
         except Exception:
-            # If something unexpected (e.g., None), leave existing value
+            # If something unexpected - leave existing value
             pass
 
 
 
-    # DEBUG: Print to console to verify data
-    print(f"Has coached plan: {summary.get('has_coached_plan')}")
+    
+    print(f"Has coached plan: {summary.get('has_coached_plan')}") # DEBUGGING
     if summary.get('has_coached_plan'):
         print(f"Uncoached paces available: {'uncoached_paces' in summary}")
         print(f"Coached paces available: {'coached_paces' in summary}")
     
-    # Format times and paces for display
     from CoachingMethods import decimal_minutes_to_pace_format, decimal_minutes_to_time_format
     
-    # Format total times
-    summary['total_actual_time_formatted'] = decimal_minutes_to_time_format(summary['total_actual_time_sec'] / 60)
+    
+    summary['total_actual_time_formatted'] = decimal_minutes_to_time_format(summary['total_actual_time_sec'] / 60) # format total times
     summary['total_predicted_time_formatted'] = decimal_minutes_to_time_format(summary['total_predicted_time_sec'] / 60)
 
-    # Format difference
+    
     diff_sec = summary['total_difference_sec']
-    diff_formatted = f"{'-' if diff_sec < 0 else '+'}{decimal_minutes_to_time_format(abs(diff_sec) / 60)}"
+    diff_formatted = f"{'-' if diff_sec < 0 else '+'}{decimal_minutes_to_time_format(abs(diff_sec) / 60)}" # format difference
     summary['difference_formatted'] = diff_formatted
     
-    # Format average pace
-    avg_pace = sum(summary['actual_paces_min']) / len(summary['actual_paces_min'])
+    
+    avg_pace = sum(summary['actual_paces_min']) / len(summary['actual_paces_min']) # format average pace
     summary['avg_actual_pace'] = decimal_minutes_to_pace_format(avg_pace)
     
-    # Format all paces for display in table
-    summary['actual_paces_display'] = [decimal_minutes_to_pace_format(p) for p in summary['actual_paces_min']]
     
-    # Calculate differences per segment
-    differences = []
+    summary['actual_paces_display'] = [decimal_minutes_to_pace_format(p) for p in summary['actual_paces_min']] # format all paces for display in table
+    
+    
+    differences = [] # differences per segment
     differences_display = []
+    segment_distances = summary['segment_distances']
     
     if summary['has_coached_plan']:
         summary['uncoached_paces_display'] = [decimal_minutes_to_pace_format(p) for p in summary['uncoached_paces']]
         summary['coached_paces_display'] = [decimal_minutes_to_pace_format(p) for p in summary['coached_paces']]
         
-        # Calculate differences against coached plan
-        for i, actual in enumerate(summary['actual_paces_min']):
-            coached = summary['coached_paces'][i]
-            diff = (actual - coached) * 60  # Convert to seconds
+        
+        for i, actual_pace in enumerate(summary['actual_paces_min']): # pace differences against coached plan
+            coached_pace = summary['coached_paces'][i]
+            segment_dist = segment_distances[i]
+
+            #actual_time_sec = actual_pace * segment_dist * 60
+            #coached_time_sec = coached_pace * segment_dist * 60
+
+            #if segment_dist < 0.85:
+             #   diff = 
+
+            diff = (actual_pace - coached_pace) * 60
             differences.append(diff)
             differences_display.append(f"{'-' if diff < 0 else '+'}{abs(int(diff))}s")
     else:
         summary['predicted_paces_display'] = [decimal_minutes_to_pace_format(p) for p in summary['predicted_paces_min']]
         
-        # Calculate differences against prediction
-        for i, actual in enumerate(summary['actual_paces_min']):
-            predicted = summary['predicted_paces_min'][i]
-            diff = (actual - predicted) * 60  # Convert to seconds
+        
+        for i, actual_pace in enumerate(summary['actual_paces_min']): # differences against prediction
+            predicted_pace = summary['predicted_paces_min'][i]
+            #segment_dist = segment_distances[i]
+
+            # Convert pace to time for this segment
+            #actual_time_sec = actual_pace * segment_dist * 60
+            #predicted_time_sec = predicted_pace * segment_dist * 60
+            
+            
+            diff = (actual_pace - coached_pace) * 60 # time difference
             differences.append(diff)
             differences_display.append(f"{'-' if diff < 0 else '+'}{abs(int(diff))}s")
     
@@ -362,13 +386,17 @@ def run_summary():
     summary['differences_display'] = differences_display
     summary['segments'] = list(range(1, len(summary['actual_paces_min']) + 1))
 
-    # Add elevation data for the elevation chart
-    coached_csv = os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv")
+    
+    coached_csv = os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv") # add elevation data for the elevation chart
     route_data = pd.read_csv(coached_csv)
     summary['elevation_gain'] = route_data['elevation_gain_m'].tolist()
     summary['elevation_loss'] = route_data['elevation_loss_m'].tolist()
     
     return render_template("summary.html", summary=summary)
+
+
+
+
 
 @app.route("/deeper_analytics")
 def deeper_analytics():
@@ -379,15 +407,14 @@ def deeper_analytics():
     
     tracker = active_trackers[tracker_id]
     
-    # Get basic summary data
     summary = tracker.get_run_summary()
     
-    # Load route data for elevation and coaching info
-    coached_csv = os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv")
+    
+    coached_csv = os.path.join(UPLOAD_FOLDER, "Coached_Paces.csv") # load route data for elevation and coaching info
     route_data = pd.read_csv(coached_csv)
     
-    # Extract data for analytics
-    actual_paces = summary['actual_paces_min']
+    
+    actual_paces = summary['actual_paces_min'] # extract data for analytics
     
     if summary['has_coached_plan']:
         coached_paces = summary['coached_paces']
@@ -395,16 +422,21 @@ def deeper_analytics():
     else:
         coached_paces = summary['predicted_paces_min']
         uncoached_paces = summary['predicted_paces_min']
+
+
+    print("\n[DEBUG ANALYTICS]") # right after extracting actual_paces
+    print(f"Actual paces (should be min/km): {actual_paces}")
+    print(f"Coached paces: {coached_paces}")
+    print(f"Segment distances: {route_data['segment_distance_km'].tolist()}")
+    print()
     
     elevation_gains = route_data['elevation_gain_m'].tolist()
     elevation_losses = route_data['elevation_loss_m'].tolist()
     
-    # Get coaching methods from session or form data
-    # You'll need to store this when the user selects methods
     coaching_methods = session.get('coaching_methods', [])
     
-    # Create analytics engine
-    analytics = PerformanceAnalytics(
+    
+    analytics = PerformanceAnalytics( # create analytics 
         actual_paces=actual_paces,
         coached_paces=coached_paces,
         uncoached_paces=uncoached_paces,
@@ -414,14 +446,14 @@ def deeper_analytics():
         segment_distances=route_data['segment_distance_km'].tolist()
     )
     
-    # Generate full report
+
     analytics_report = analytics.get_full_analytics_report()
     
-    # Format for display
-    from CoachingMethods import decimal_minutes_to_pace_format
+   
+    from CoachingMethods import decimal_minutes_to_pace_format  # for display
     
-    # Format terrain analysis
-    if analytics_report['terrain_analysis']['uphill']:
+    
+    if analytics_report['terrain_analysis']['uphill']: # format terrain analysis
         for key in ['avg_actual_pace', 'avg_coached_pace']:
             analytics_report['terrain_analysis']['uphill'][key + '_display'] = \
                 decimal_minutes_to_pace_format(analytics_report['terrain_analysis']['uphill'][key])
@@ -436,14 +468,14 @@ def deeper_analytics():
             analytics_report['terrain_analysis']['flat'][key + '_display'] = \
                 decimal_minutes_to_pace_format(analytics_report['terrain_analysis']['flat'][key])
     
-    # Format split analysis
-    for key in ['first_half_avg_actual', 'second_half_avg_actual', 
+    
+    for key in ['first_half_avg_actual', 'second_half_avg_actual', # format split analysis
                 'first_half_avg_coached', 'second_half_avg_coached']:
         analytics_report['split_analysis'][key + '_display'] = \
             decimal_minutes_to_pace_format(analytics_report['split_analysis'][key])
     
-    # Format best/worst segments
-    for segment in analytics_report['best_worst_segments']['best_segments']:
+    
+    for segment in analytics_report['best_worst_segments']['best_segments']: # format best/worst segments
         segment['actual_pace_display'] = decimal_minutes_to_pace_format(segment['actual_pace'])
         segment['coached_pace_display'] = decimal_minutes_to_pace_format(segment['coached_pace'])
     
@@ -451,8 +483,8 @@ def deeper_analytics():
         segment['actual_pace_display'] = decimal_minutes_to_pace_format(segment['actual_pace'])
         segment['coached_pace_display'] = decimal_minutes_to_pace_format(segment['coached_pace'])
     
-    # Add segment-level data for charts
-    analytics_report['segments'] = list(range(1, len(actual_paces) + 1))
+    
+    analytics_report['segments'] = list(range(1, len(actual_paces) + 1)) # add segment-level data for charts
     analytics_report['actual_paces'] = actual_paces
     analytics_report['coached_paces'] = coached_paces
     analytics_report['net_elevation'] = (np.array(elevation_gains) - np.array(elevation_losses)).tolist()

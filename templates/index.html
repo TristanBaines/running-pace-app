@@ -68,15 +68,15 @@
     </div>
 
     <script>
-        // Show/hide Chosen Time inputs based on checkbox
-        document.getElementById('chosen').addEventListener('change', function() {
+        
+        document.getElementById('chosen').addEventListener('change', function() { // show and hide Chosen Time inputs based
             const chosenTimeInputs = document.getElementById('chosen-time-inputs');
             if (this.checked) {
                 chosenTimeInputs.style.display = 'block';
             } else {
                 chosenTimeInputs.style.display = 'none';
-                // Clear the input values when hiding
-                document.querySelector('input[name="target_time"]').value = '';
+                
+                document.querySelector('input[name="target_time"]').value = ''; // clear the input values when hiding
                 document.querySelector('input[name="time_reduction"]').value = '';
             }
         });

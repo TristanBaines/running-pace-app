@@ -5,8 +5,8 @@ dataset = pd.read_csv("D:\\Most Recent\\TaliaStravaData\\fit_files_sorted\\runni
 
 dataset['run_id'] = (dataset['segment_km'] == 1.0).cumsum()
 
-# Function to replace outliers within each run
-def replace_outliers(group):
+
+def replace_outliers(group): # function to replace outliers within each run
     run_id = group['run_id'].iloc[0]
     mean = group['avg_pace_min/km'].mean()
     std = group['avg_pace_min/km'].std()
@@ -14,8 +14,8 @@ def replace_outliers(group):
     fast_threshold = mean - 1.5 * std
     slow_threshold = mean + 2 * std
 
-    # Mask for outliers
-    outliers_mask = (group['avg_pace_min/km'] < fast_threshold) | (group['avg_pace_min/km'] > slow_threshold)
+    
+    outliers_mask = (group['avg_pace_min/km'] < fast_threshold) | (group['avg_pace_min/km'] > slow_threshold) # mask for outliers
     outliers = group[outliers_mask]
 
     print(f"\nRun ID: {run_id}")
@@ -29,8 +29,8 @@ def replace_outliers(group):
     else:
         print("  No outliers found.")
 
-    # Replace outliers with the run mean
-    group.loc[outliers_mask, 'avg_pace_min/km'] = mean
+    
+    group.loc[outliers_mask, 'avg_pace_min/km'] = mean # replace outliers with the run mean
 
     if not outliers.empty:
         print("  After replacement:")
@@ -38,8 +38,8 @@ def replace_outliers(group):
 
     return group
 
-# Apply per run
-dataset = dataset.groupby('run_id', group_keys=False).apply(replace_outliers)
+
+dataset = dataset.groupby('run_id', group_keys=False).apply(replace_outliers) # apply per run
 
 runs_to_remove = [5, 6, 28, 43]
 
@@ -47,10 +47,10 @@ dataset = dataset[~dataset['run_id'].isin(runs_to_remove)]
 
 dataset = dataset.reset_index(drop=True)
 
-# Move 'run_id' to be the first column
-cols = dataset.columns.tolist()
+
+cols = dataset.columns.tolist() # move run_id to be the first column
 cols.insert(0, cols.pop(cols.index('run_id')))
 dataset = dataset[cols]
 
-# Save cleaned dataset
-dataset.to_csv("D:\\Most Recent\\TaliaStravaData\\TaliasFinalCleanedDataset.csv", index=False)
+
+dataset.to_csv("D:\\Most Recent\\TaliaStravaData\\TaliasFinalCleanedDataset.csv", index=False) # save cleaned dataset

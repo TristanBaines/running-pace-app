@@ -205,10 +205,10 @@ def process_gpx_route_with_enhanced_features(gpx_path, output_path=None, segment
     
     return df
 
-if __name__ == '__main__':
+if __name__ == '__main__': 
     # Process your GPX route
-    gpx_path = 'D:\\JonkershoekGate.gpx'
-    output_path = 'D:\\Most Recent\\JonkershoekGate.csv'
+    gpx_path = 'C:\\Users\\User\\Desktop\\TestingIncompleteSegment.gpx'
+    output_path = 'C:\\Users\\User\\Desktop\\TestingIncompleteSegment.csv'
     
     # Create enhanced route dataset
     route_df = process_gpx_route_with_enhanced_features(gpx_path, output_path)

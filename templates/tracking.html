@@ -29,7 +29,7 @@
     <button class="button-warning" id="pause-button" onclick="togglePause()" disabled style="display: none;">PAUSE</button>
     <button class="button-primary" id="split-button" onclick="logSplit()" disabled>LOG SPLIT</button>
 
-    <!-- Completion Message (hidden by default) -->
+
 <div id="completion-message" style="display: none;">
     <div class="completion-box">
         <h2 style="color: #27ae60; margin-bottom: 20px;">🎉 Run Complete! 🎉</h2>
@@ -50,18 +50,17 @@
                 </tr>
             </thead>
             <tbody id="splits-body">
-                <!-- Splits will be added here -->
             </tbody>
         </table>
     </div>
 
     <script>
-        // Your existing JavaScript stays the same
         let timerInterval = null;
         let startTime = null;
         let segmentStartTime = null;
         let currentSegment = 0;
         let isPaused = false;
+        let pauseStartTime = null;
         let totalPausedTime = 0;
         let segmentPausedTime = 0;
         const totalSegments = {{ total_segments | int }};
@@ -71,15 +70,14 @@
         const elevationLosses = {{ elevation_losses | tojson | safe }};
 
         function hapticFeedback(pattern = 'short') {
-            // Check if the device supports vibration
-            if (!('vibrate' in navigator)) return;
+            if (!('vibrate' in navigator)) return; // check if the device supports vibration
             
             const patterns = {
-                'short': 100,           // Quick tap
-                'medium': 200,         // Normal press
-                'long': 300,           // Strong press
-                'double': [100, 100, 100], // Two quick pulses
-                'success': [50, 50, 50]  // Three quick pulses for success
+                'short': 100, // quick tap
+                'medium': 200, // normal press
+                'long': 300, // strong press
+                'double': [100, 100, 100], // two quick pulses
+                'success': [50, 50, 50] // three quick pulses for success
             };
     
             navigator.vibrate(patterns[pattern] || 50);
@@ -104,15 +102,14 @@
 
         function updateTimers() {
             if (isPaused) {
-                return;  // Timer frozen while paused
+                return;  // timer frozen while paused
             }
             
             const now = Date.now() / 1000;
-            const totalElapsed = now - startTime;
+            const totalElapsed = now - startTime - totalPausedTime;
             document.getElementById('total-timer').textContent = formatTime(totalElapsed);
-            
-            // Segment timer just shows time since segment started (no pause adjustment needed in frontend)
-            const segmentElapsed = now - segmentStartTime;
+
+            const segmentElapsed = now - segmentStartTime - segmentPausedTime;
             document.getElementById('segment-timer').textContent = formatTime(segmentElapsed);
         }
 
@@ -126,6 +123,9 @@
                         segmentStartTime = startTime;
                         document.getElementById('start-button').disabled = true;
                         document.getElementById('split-button').disabled = false;
+
+                        console.log('[START] startTime:', startTime);
+                    console.log('[START] segmentStartTime:', segmentStartTime);
                         
                         totalPausedTime = 0;
                         segmentPausedTime = 0;
@@ -139,44 +139,78 @@
 
         function logSplit() {
             hapticFeedback('double');
+            
+            const now = Date.now() / 1000;
+            const frontendSegmentTime = now - segmentStartTime - segmentPausedTime;
+            console.log('[SPLIT - BEFORE] Frontend segment time:', frontendSegmentTime);
+            console.log('[SPLIT - BEFORE] now:', now);
+            console.log('[SPLIT - BEFORE] segmentStartTime:', segmentStartTime);
+            console.log('[SPLIT - BEFORE] segmentPausedTime:', segmentPausedTime);
+            
             fetch('/log_split', { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
+                    console.log('[SPLIT - RESPONSE] Backend data:', data);
+                    console.log('[SPLIT - RESPONSE] Backend segment time:', data.actual_time_sec);
+                    console.log('[SPLIT - RESPONSE] Difference:', Math.abs(frontendSegmentTime - data.actual_time_sec));
+                    
                     if (data.segment) {
                         const tbody = document.getElementById('splits-body');
                         const row = tbody.insertRow();
-                        const actualPace = formatPace(data.actual_pace_min);
-                        const predictedPace = formatPace(data.predicted_pace_min);
-                        const diffSecs = Math.round(data.difference_sec);
-                        const diffFormatted = `${data.faster ? '-' : '+'}${Math.abs(diffSecs)}s`;
-                        const diffClass = data.faster ? 'faster' : 'slower';
+                        
+                        const actualTime = formatTime(data.actual_time_sec); // format actual segment TIME
+                        
+                        
+                        const segmentDist = segmentDistances[data.segment - 1]; // calculate predicted segment TIME
+                        let predictedTimeMin;
+                        
+                        if (data.segment === totalSegments && segmentDist < 0.85) {
+                            predictedTimeMin = data.predicted_pace_min * segmentDist;
+                        } else {
+                            predictedTimeMin = data.predicted_pace_min * 1.0;  // assume exactly 1km
+                        }
+                        
+                        const predictedTimeSec = predictedTimeMin * 60;  // convert to seconds
+                        const predictedTime = formatTime(predictedTimeSec);
+                        
+                        
+                        const timeDiffSec = data.actual_time_sec - predictedTimeSec; // calculate TIME difference (actual - predicted)
+                        const diffFormatted = `${timeDiffSec < 0 ? '-' : '+'}${Math.abs(Math.round(timeDiffSec))}s`;
+                        const diffClass = timeDiffSec < 0 ? 'faster' : 'slower';
 
                         row.innerHTML = `
                             <td>${data.segment}</td>
-                            <td>${actualPace}</td>
-                            <td>${predictedPace}</td>
+                            <td>${actualTime}</td>
+                            <td>${predictedTime}</td>
                             <td class="${diffClass}">${diffFormatted}</td>
                         `;
 
+                        
+                        const oldSegmentStartTime = segmentStartTime; // reset segment timer
                         segmentStartTime = Date.now() / 1000;
                         segmentPausedTime = 0;
                         currentSegment = data.segment;
+                        
+                        console.log('[SPLIT - RESET] Old segmentStartTime:', oldSegmentStartTime);
+                        console.log('[SPLIT - RESET] New segmentStartTime:', segmentStartTime);
+                        console.log('[SPLIT - RESET] Reset segmentPausedTime to 0');
+                        
                         updateSegmentInfo();
 
                         if (data.run_completed) {
                             clearInterval(timerInterval);
                             document.getElementById('split-button').disabled = true;
-                            
-                            // Show completion message instead of alert
                             document.getElementById('completion-message').style.display = 'block';
-                            
-                            // Scroll to completion message
                             document.getElementById('completion-message').scrollIntoView({ 
                                 behavior: 'smooth', 
                                 block: 'center' 
                             });
                         }
                     }
+                })
+                .catch(error => {
+                    console.error('[SPLIT - ERROR]', error);
+                    alert('Error logging split: ' + error.message);
                 });
         }
 
@@ -184,7 +218,7 @@
             hapticFeedback('long');
 
             if (isPaused) {
-                // Resume
+                console.log('[PAUSE] Resuming...'); // resume
                 fetch('/resume_run', { method: 'POST' })
                     .then(response => response.json())
                     .then(data => {
@@ -192,13 +226,21 @@
 
                             const pauseDuration = data.pause_duration;
 
-                            totalPausedTime += pauseDuration;
-                            totalPausedTime += data.pause_duration;  // Only update total
+                            console.log('[PAUSE] Pause duration:', pauseDuration);
+                            console.log('[PAUSE] Old totalPausedTime:', totalPausedTime);
+                            console.log('[PAUSE] Old segmentPausedTime:', segmentPausedTime);
 
-                            startTime += pauseDuration;
-                            segmentStartTime += pauseDuration;
+                            totalPausedTime += pauseDuration;
+                            segmentPausedTime += pauseDuration;  // only update total time
+
+                            //startTime += pauseDuration;
+                            //segmentStartTime += pauseDuration;
+
+                            console.log('[PAUSE] New totalPausedTime:', totalPausedTime);
+                            console.log('[PAUSE] New segmentPausedTime:', segmentPausedTime);
                             
                             isPaused = false;
+                            pauseStartTime = null;
                             document.getElementById('pause-button').textContent = 'PAUSE';
                             document.getElementById('pause-button').className = 'button-warning';
                             document.getElementById('split-button').disabled = false;
@@ -206,7 +248,8 @@
                         }
                     });
             } else {
-                // Pause
+                pauseStartTime = Date.now() / 1000;
+                console.log('[PAUSE] Pausing...'); // pause
                 fetch('/pause_run', { method: 'POST' })
                     .then(response => response.json())
                     .then(data => {
@@ -224,10 +267,9 @@
         function updateSegmentInfo() {
             document.getElementById('current-segment').textContent = currentSegment;
             if (currentSegment < predictedPaces.length) {
-                // Update distance (round to 1.0 if close, otherwise show actual)
-                let distance = segmentDistances[currentSegment];
+                let distance = segmentDistances[currentSegment]; // update distance 1 if close, otherwise show actual for partial segments
                 if (distance >= 0.89) {
-                    distance = 1.0;  // Round up if close to 1km
+                    distance = 1.0;
                 } else distance = segmentDistances[currentSegment];
                 document.getElementById('segment-distance').textContent = distance.toFixed(2);
                 document.getElementById('predicted-pace').textContent = formatPace(predictedPaces[currentSegment]);
