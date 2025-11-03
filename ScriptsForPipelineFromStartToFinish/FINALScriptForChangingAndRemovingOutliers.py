@@ -19,21 +19,21 @@ def replace_outliers(group): # function to replace outliers within each run
     outliers = group[outliers_mask]
 
     print(f"\nRun ID: {run_id}")
-    print(f"  Mean pace: {mean:.2f}, Std dev: {std:.2f}")
-    print(f"  Fast threshold (<): {fast_threshold:.2f}")
-    print(f"  Slow threshold (>): {slow_threshold:.2f}")
+    print(f"Mean pace: {mean:.2f}, Std dev: {std:.2f}")
+    print(f"Fast threshold: {fast_threshold:.2f}")
+    print(f"Slow threshold: {slow_threshold:.2f}")
 
     if not outliers.empty:
-        print("  Outliers found:")
+        print("Outliers found:")
         print(outliers[['segment_km', 'avg_pace_min/km']])
     else:
-        print("  No outliers found.")
+        print("No outliers found.")
 
     
     group.loc[outliers_mask, 'avg_pace_min/km'] = mean # replace outliers with the run mean
 
     if not outliers.empty:
-        print("  After replacement:")
+        print("After replacement:")
         print(group.loc[outliers_mask, ['segment_km', 'avg_pace_min/km']])
 
     return group

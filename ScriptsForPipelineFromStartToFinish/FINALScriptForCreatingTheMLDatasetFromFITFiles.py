@@ -3,82 +3,70 @@ import numpy as np
 from pathlib import Path
 import math
 
-# You'll need to install fitparse: pip install fitparse
 try:
     from fitparse import FitFile
 except ImportError:
-    print("Please install fitparse: pip install fitparse")
+    print("install fitparse")
     exit(1)
 
 def haversine_distance(lat1, lon1, lat2, lon2):
-    """
-    Calculate the great circle distance between two points 
-    on the earth (specified in decimal degrees)
-    Returns distance in meters
-    """
-    # Convert decimal degrees to radians
-    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2]) # decimal degrees to radians
     
-    # Haversine formula
-    dlat = lat2 - lat1
+    
+    dlat = lat2 - lat1 # Haversine formula
     dlon = lon2 - lon1
     a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
     c = 2 * math.asin(math.sqrt(a))
     
-    # Radius of earth in meters
-    r = 6371000
+    
+    r = 6371000 # radius of earth in m
     return c * r
 
 def parse_fit_file(file_path):
-    """
-    Parse a .fit file and extract GPS and elevation data
-    """
+
     fit_file = FitFile(str(file_path))
     records = []
     
     for record in fit_file.get_messages('record'):
         data = {}
         for field in record:
-            # Check for multiple possible altitude field names
-            if field.name in ['position_lat', 'position_long', 'altitude', 'enhanced_altitude', 'timestamp']:
+            
+            if field.name in ['position_lat', 'position_long', 'altitude', 'enhanced_altitude', 'timestamp']: # check for multiple altitude field names
                 if field.name in ['position_lat', 'position_long'] and field.value is not None:
-                    # Convert semicircles to degrees
-                    data[field.name] = field.value * (180 / 2**31)
+                    
+                    data[field.name] = field.value * (180 / 2**31) # convert semicircles to degrees
                 elif field.name in ['altitude', 'enhanced_altitude'] and field.value is not None:
-                    # Use enhanced_altitude if available, otherwise altitude
                     if 'altitude' not in data or field.name == 'enhanced_altitude':
                         data['altitude'] = field.value
                 else:
                     data[field.name] = field.value
         
-        # Only include records with GPS data
-        if 'position_lat' in data and 'position_long' in data and data['position_lat'] is not None:
+        
+        if 'position_lat' in data and 'position_long' in data and data['position_lat'] is not None: # only include records with GPS data
             records.append(data)
     
     df = pd.DataFrame(records)
     
-    # Debug: Print altitude info
-    if not df.empty:
+
+    if not df.empty: # Debug altitude info
         if 'altitude' in df.columns:
             non_null = df['altitude'].notna().sum()
             if non_null > 0:
-                print(f"  Altitude data: {non_null} points, range: {df['altitude'].min():.1f}m to {df['altitude'].max():.1f}m")
+                print(f"Altitude data: {non_null} points, range: {df['altitude'].min():.1f}m to {df['altitude'].max():.1f}m")
             else:
-                print(f"  WARNING: altitude column exists but all values are null")
+                print(f"WARNING: altitude column exists but all values are null")
         else:
-            print(f"  WARNING: No altitude data found in this file")
+            print(f"WARNING: No altitude data found in this file")
     
     return df
 
 def calculate_cumulative_distance(df):
-    """
-    Calculate cumulative distance using GPS coordinates
-    """
     if len(df) < 2:
         df['cumulative_distance_m'] = 0
         return df
     
-    distances = [0]  # First point has 0 distance
+    distances = [0]  # first point has 0 distance
     
     for i in range(1, len(df)):
         if (pd.notna(df.iloc[i]['position_lat']) and pd.notna(df.iloc[i]['position_long']) and
@@ -96,10 +84,6 @@ def calculate_cumulative_distance(df):
     return df
 
 def create_1km_segments(df, run_id):
-    """
-    Split run data into 1km segments and calculate features
-    Each segment becomes one row in the dataset with run_id for grouping
-    """
     if df.empty:
         return pd.DataFrame()
     

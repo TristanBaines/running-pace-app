@@ -21,7 +21,6 @@ app.secret_key = 'secret-key'
 active_trackers = {} # global tracker for storage in memory
 
 def allowed_file(filename): # only allow gpx files
-    """Check if file has .gpx extension"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() == 'gpx'
 
 @app.route("/") # home page
@@ -177,7 +176,6 @@ def predict():
 
 @app.route("/start_tracking", methods=["POST"])
 def start_tracking():
-    """Initialize tracking page with selected pace plan"""
     selected_plan = request.form.get("selected_plan", "Final Plan")
     
     
@@ -193,7 +191,7 @@ def start_tracking():
     session['selected_plan'] = selected_plan
     session['selected_plan_time_sec'] = selected_plan_time_sec
 
-    print(f"[DEBUG] Selected plan: {selected_plan}, Total predicted time (sec): {selected_plan_time_sec}")
+    print(f"DEBUG Selected plan: {selected_plan}, Total predicted time (sec): {selected_plan_time_sec}")
 
 
 
@@ -210,9 +208,8 @@ def start_tracking():
         selected_plan = "Uncoached Pace"
 
     
-    print("=== CSV COLUMNS ===") # DEBUGGING
+    print("CSV COLUMNS") # DEBUGGING
     print(route_data.columns.tolist())
-    print("===================")
     
     
     tracker = RunTracker(route_data, selected_plan) # creates tracker
@@ -356,12 +353,6 @@ def run_summary():
             coached_pace = summary['coached_paces'][i]
             segment_dist = segment_distances[i]
 
-            #actual_time_sec = actual_pace * segment_dist * 60
-            #coached_time_sec = coached_pace * segment_dist * 60
-
-            #if segment_dist < 0.85:
-             #   diff = 
-
             diff = (actual_pace - coached_pace) * 60
             differences.append(diff)
             differences_display.append(f"{'-' if diff < 0 else '+'}{abs(int(diff))}s")
@@ -371,12 +362,6 @@ def run_summary():
         
         for i, actual_pace in enumerate(summary['actual_paces_min']): # differences against prediction
             predicted_pace = summary['predicted_paces_min'][i]
-            #segment_dist = segment_distances[i]
-
-            # Convert pace to time for this segment
-            #actual_time_sec = actual_pace * segment_dist * 60
-            #predicted_time_sec = predicted_pace * segment_dist * 60
-            
             
             diff = (actual_pace - coached_pace) * 60 # time difference
             differences.append(diff)
@@ -400,7 +385,6 @@ def run_summary():
 
 @app.route("/deeper_analytics")
 def deeper_analytics():
-    """Deep analytics page comparing actual performance to coached plan"""
     tracker_id = session.get('tracker_id')
     if not tracker_id or tracker_id not in active_trackers:
         return "No completed run found", 404
@@ -424,7 +408,7 @@ def deeper_analytics():
         uncoached_paces = summary['predicted_paces_min']
 
 
-    print("\n[DEBUG ANALYTICS]") # right after extracting actual_paces
+    print("\nDEBUG ANALYTICS") # right after extracting actual_paces
     print(f"Actual paces (should be min/km): {actual_paces}")
     print(f"Coached paces: {coached_paces}")
     print(f"Segment distances: {route_data['segment_distance_km'].tolist()}")

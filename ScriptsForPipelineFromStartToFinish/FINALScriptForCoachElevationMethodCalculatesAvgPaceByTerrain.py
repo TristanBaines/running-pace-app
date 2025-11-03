@@ -2,17 +2,7 @@ import pandas as pd
 import numpy as np
 
 def process_running_data(csv_file_path):
-    """
-    Process running data CSV to calculate slopes and analyze pacing by terrain type.
     
-    Parameters:
-    csv_file_path (str): Path to the CSV file containing running data
-    
-    Returns:
-    dict: Dictionary containing processed data and analysis results
-    """
-    
-    # Read the CSV file
     try:
         df = pd.read_csv(csv_file_path)
         print(f"Loaded {len(df)} segments from {csv_file_path}")
@@ -23,31 +13,22 @@ def process_running_data(csv_file_path):
         print(f"Error reading CSV file: {e}")
         return None
     
-    # Check required columns
-    required_columns = ['run_id', 'segment_distance_km', 'elevation_gain_m', 'elevation_loss_m', 'avg_pace_min/km']
+    required_columns = ['run_id', 'segment_distance_km', 'elevation_gain_m', 'elevation_loss_m', 'avg_pace_min/km'] # required columns 
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
         print(f"Error: Missing required columns: {missing_columns}")
         return None
     
-    # Calculate net elevation for each segment
-    df['net_elevation_m'] = df['elevation_gain_m'] - df['elevation_loss_m']
+    df['net_elevation_m'] = df['elevation_gain_m'] - df['elevation_loss_m'] # net elevation
     
-    # Convert segment distance from km to meters
-    df['segment_distance_m'] = df['segment_distance_km'] * 1000
+    df['segment_distance_m'] = df['segment_distance_km'] * 1000 # segment distance from km to m
     
-    # Calculate slope (net elevation / distance in meters)
-    # Handle division by zero
-    df['slope'] = np.where(df['segment_distance_m'] != 0, 
+    df['slope'] = np.where(df['segment_distance_m'] != 0, # slope, net elevation / distance in m
                           df['net_elevation_m'] / df['segment_distance_m'], 
                           0)
     
-    # Classify slopes as flat, uphill, or downhill
-    def classify_slope(slope, flat_threshold=0.01):
-        """
-        Classify slope as flat, uphill, or downhill
-        flat_threshold: threshold for considering terrain as flat (1% grade = 0.01)
-        """
+    
+    def classify_slope(slope, flat_threshold=0.01): # classify slopes
         if slope > flat_threshold:
             return 'uphill'
         elif slope < -flat_threshold:
@@ -57,23 +38,17 @@ def process_running_data(csv_file_path):
     
     df['terrain_type'] = df['slope'].apply(classify_slope)
     
-    # Calculate average pace per terrain class
-    avg_pace_by_terrain = df.groupby('terrain_type')['avg_pace_min/km'].agg([
+    avg_pace_by_terrain = df.groupby('terrain_type')['avg_pace_min/km'].agg([ # avg pace per class
         'mean', 'count', 'std'
     ]).round(3)
     
-    # Add column names for clarity
     avg_pace_by_terrain.columns = ['avg_pace_min_per_km', 'segment_count', 'std_dev']
     
-    # Calculate additional statistics
     terrain_distribution = df['terrain_type'].value_counts(normalize=True).round(3)
     
-    # Summary statistics
-    slope_stats = df['slope'].describe()
-    
-    print("\n" + "="*50)
-    print("RUNNING DATA ANALYSIS RESULTS")
-    print("="*50)
+    slope_stats = df['slope'].describe()  
+
+    print("RUNNING DATA ANALYSIS RESULTS:")
     
     print(f"\nDataset Overview:")
     print(f"- Total segments: {len(df)}")
@@ -97,7 +72,6 @@ def process_running_data(csv_file_path):
         std = avg_pace_by_terrain.loc[terrain, 'std_dev']
         print(f"- {terrain.capitalize()}: {avg_pace:.3f} min/km (n={count}, std={std:.3f})")
     
-    # Create results dictionary
     results = {
         'processed_dataframe': df,
         'avg_pace_by_terrain': avg_pace_by_terrain,
@@ -113,9 +87,6 @@ def process_running_data(csv_file_path):
     return results
 
 def save_results_to_csv(results, output_file_path):
-    """
-    Save the processed data to a new CSV file
-    """
     if results is None:
         print("No results to save")
         return
@@ -124,21 +95,16 @@ def save_results_to_csv(results, output_file_path):
     df.to_csv(output_file_path, index=False)
     print(f"\nProcessed data saved to: {output_file_path}")
     
-    # Also save summary statistics with offsets
     summary_file = output_file_path.replace('.csv', '_summary.csv')
     
-    # Create a comprehensive summary including offsets
     summary_df = results['avg_pace_by_terrain'].copy()
     
-    # Add offsets to the summary dataframe if they exist
     if 'pace_offsets' in results:
         print(f"Debug: Found pace_offsets in results: {results['pace_offsets']}")
         
-        # Add offset columns to the summary dataframe
         summary_df['uphill_offset_percent'] = None
         summary_df['downhill_offset_percent'] = None
         
-        # Fill in the offset values for the corresponding terrain types
         if 'uphill' in summary_df.index and results['pace_offsets']['uphill_offset_percent'] is not None:
             summary_df.loc['uphill', 'uphill_offset_percent'] = results['pace_offsets']['uphill_offset_percent']
             print(f"Debug: Added uphill offset: {results['pace_offsets']['uphill_offset_percent']}")
@@ -152,25 +118,17 @@ def save_results_to_csv(results, output_file_path):
     print(f"Debug: Summary dataframe before saving:")
     print(summary_df)
     
-    # Save the complete summary with pace data and offsets
     summary_df.to_csv(summary_file)
     print(f"Summary statistics with offsets saved to: {summary_file}")
 
-# Example usage
 if __name__ == "__main__":
-    # Replace with your CSV file path
     input_file = "D:\\Most Recent\\TaliaStravaData\\TaliasFinalCleanedDataset.csv"
     output_file = "Talias_processed_running_data.csv"
     
-    # Process the data
     results = process_running_data(input_file)
     
     if results is not None:
-        # Save results
         save_results_to_csv(results, output_file)
         
-        # Access specific results
-        print("\n" + "="*30)
         print("Sample processed data:")
-        print("="*30)
         print(results['processed_dataframe'][['run_id', 'segment_distance_km', 'net_elevation_m', 'slope', 'terrain_type', 'avg_pace_min/km']].head(10))

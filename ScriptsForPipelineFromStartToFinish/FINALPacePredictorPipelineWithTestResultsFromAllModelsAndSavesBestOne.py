@@ -17,7 +17,6 @@ class PacePrediction:
         self.tune_hyperparameters = tune_hyperparameters
         self.scaler = StandardScaler()
         
-        # Updated models to include both Linear Regression and Ridge
         if tune_hyperparameters:
             self.models = {}
             self.param_grids = {
@@ -37,8 +36,6 @@ class PacePrediction:
                     'alpha': [0.1, 1.0, 10.0, 100.0, 1000.0]
                 },
                 'LinearRegression': {
-                    # Linear Regression has no hyperparameters to tune
-                    # Empty dict, but we'll still run cross-validation
                 }
             }
         else:
@@ -56,40 +53,31 @@ class PacePrediction:
         self.best_params = {}
     
     def _create_train_val_test_split(self, X, y, groups, train_size=0.6, val_size=0.2, test_size=0.2):
-        """
-        Create train/validation/test split keeping runs together.
-        Default: 60% train, 20% validation, 20% test
-        """
         if abs(train_size + val_size + test_size - 1.0) > 1e-6:
             raise ValueError("train_size + val_size + test_size must equal 1.0")
         
-        # First split: separate test set
-        gss_test = GroupShuffleSplit(n_splits=1, test_size=test_size, random_state=self.random_state)
+        
+        gss_test = GroupShuffleSplit(n_splits=1, test_size=test_size, random_state=self.random_state) # separate test set
         temp_idx, test_idx = next(gss_test.split(X, y, groups))
         
-        # Second split: separate train and validation from remaining data
-        temp_size = train_size + val_size
-        val_size_adjusted = val_size / temp_size  # Adjust validation size for remaining data
+        
+        temp_size = train_size + val_size # separate train and validation from remaining data
+        val_size_adjusted = val_size / temp_size
         
         X_temp, y_temp, groups_temp = X.iloc[temp_idx], y.iloc[temp_idx], groups.iloc[temp_idx]
         
         gss_val = GroupShuffleSplit(n_splits=1, test_size=val_size_adjusted, random_state=self.random_state)
         train_idx_temp, val_idx_temp = next(gss_val.split(X_temp, y_temp, groups_temp))
         
-        # Convert back to original indices
         train_idx = temp_idx[train_idx_temp]
         val_idx = temp_idx[val_idx_temp]
         
         return train_idx, val_idx, test_idx
     
     def train_and_evaluate(self, historic_data_path, train_size=0.6, val_size=0.2, test_size=0.2, cv_folds=5):
-        """
-        Load historic data, create train/validation/test split, train models, tune hyperparameters, and evaluate.
-        """
-        print("Loading historic data...")
+
         df = pd.read_csv(historic_data_path)
         
-        # Prepare features and target
         feature_cols = [col for col in df.columns if col not in ['avg_pace_min/km', 'run_id']]
         X = df[feature_cols]
         y = df['avg_pace_min/km']
@@ -98,8 +86,8 @@ class PacePrediction:
         print(f"Dataset: {len(df)} segments from {df['run_id'].nunique()} runs")
         print(f"Features: {feature_cols}")
         
-        # Create train/validation/test split
-        print(f"\nCreating train/validation/test split ({int(train_size*100)}%/{int(val_size*100)}%/{int(test_size*100)}%)...")
+        
+        print(f"\ntrain/validation/test split ({int(train_size*100)}%/{int(val_size*100)}%/{int(test_size*100)}%)...") # train/validation/test split
         train_idx, val_idx, test_idx = self._create_train_val_test_split(
             X, y, groups, train_size, val_size, test_size
         )
@@ -114,27 +102,23 @@ class PacePrediction:
         print(f"Validation set: {len(X_val)} segments from {groups_val.nunique()} runs")
         print(f"Test set: {len(X_test)} segments from {groups_test.nunique()} runs")
         
-        # Scale features
-        X_train_scaled = self.scaler.fit_transform(X_train)
+        
+        X_train_scaled = self.scaler.fit_transform(X_train) # scale features
         X_val_scaled = self.scaler.transform(X_val)
         X_test_scaled = self.scaler.transform(X_test)
         
-        # Cross-validation setup for proper evaluation (respects run groupings)
-        print(f"\nUsing GroupKFold with {cv_folds} folds to keep run segments together...")
+        
+        print(f"\nUsing GroupKFold with {cv_folds} folds to keep run segments together...") # Cross-validation setup for proper evaluation
         group_kfold = GroupKFold(n_splits=cv_folds)
         
         print(f"Training set has {groups_train.nunique()} unique runs")
-        print("GroupKFold will ensure segments from the same run stay in the same fold")
-        print("This preserves temporal relationships and prevents data leakage")
         
-        # Train and evaluate each model
-        for name in ['XGBoost', 'RandomForest', 'Ridge', 'LinearRegression']:
-            print(f"\n{'='*50}")
-            print(f"Training {name}...")
-            print(f"{'='*50}")
+        
+        for name in ['XGBoost', 'RandomForest', 'Ridge', 'LinearRegression']: # train and evaluate each model
+            print(f"Training {name}.")
             
-            # Step 1: Initial training and cross-validation on training set
-            if name == 'XGBoost':
+            
+            if name == 'XGBoost': # training and cross-validation on training set
                 base_model = XGBRegressor(random_state=self.random_state)
             elif name == 'RandomForest':
                 base_model = RandomForestRegressor(random_state=self.random_state)
@@ -143,8 +127,8 @@ class PacePrediction:
             elif name == 'LinearRegression':
                 base_model = LinearRegression()
             
-            # Get baseline CV performance
-            cv_scores = cross_val_score(
+            
+            cv_scores = cross_val_score( # baseline CV performance
                 base_model, X_train_scaled, y_train,
                 groups=groups_train,
                 cv=group_kfold,
@@ -153,22 +137,22 @@ class PacePrediction:
             rmse_scores = np.sqrt(-cv_scores)
             print(f"Baseline CV RMSE: {rmse_scores.mean():.4f} +- {rmse_scores.std():.4f}")
             
-            # Step 2: Hyperparameter tuning using GroupKFold cross-validation on training set
-            if self.tune_hyperparameters and self.param_grids[name]:
-                print(f"Tuning hyperparameters using GroupKFold CV on training set...")
+            
+            if self.tune_hyperparameters and self.param_grids[name]: # hyperparameter tuning using GroupKFold cross-validation on training set
+                print(f"Tuning hyperparameters")
                 
-                # Use GroupKFold for hyperparameter tuning to respect run groupings
-                grid_search = GridSearchCV(
+                
+                grid_search = GridSearchCV( # GroupKFold for hyperparameter tuning
                     base_model, 
                     self.param_grids[name],
-                    cv=GroupKFold(n_splits=cv_folds),  # Use GroupKFold here!
+                    cv=GroupKFold(n_splits=cv_folds),
                     scoring='neg_mean_squared_error',
                     n_jobs=-1,
                     verbose=1
                 )
                 
-                # Fit with groups to ensure runs stay together
-                grid_search.fit(X_train_scaled, y_train, groups=groups_train)
+                
+                grid_search.fit(X_train_scaled, y_train, groups=groups_train) # groups keep runs together
                 
                 best_model = grid_search.best_estimator_
                 self.best_params[name] = grid_search.best_params_
@@ -176,19 +160,17 @@ class PacePrediction:
                 print(f"Best parameters: {self.best_params[name]}")
                 print(f"Best CV RMSE: {np.sqrt(-grid_search.best_score_):.4f}")
                 
-                # Also evaluate best model on validation set for comparison
-                val_pred = best_model.predict(X_val_scaled)
+                
+                val_pred = best_model.predict(X_val_scaled) # evaluate best model on validation set
                 val_rmse = np.sqrt(mean_squared_error(y_val, val_pred))
                 print(f"Validation RMSE with best params: {val_rmse:.4f}")
                 
             elif name == 'LinearRegression':
-                # LinearRegression has no hyperparameters to tune
                 best_model = LinearRegression()
                 best_model.fit(X_train_scaled, y_train)
                 print("No hyperparameters to tune for Linear Regression")
             else:
-                # Use default parameters
-                if name == 'XGBoost':
+                if name == 'XGBoost': # default parameters
                     best_model = XGBRegressor(random_state=self.random_state, n_estimators=100)
                 elif name == 'RandomForest':
                     best_model = RandomForestRegressor(random_state=self.random_state, n_estimators=100)
@@ -196,10 +178,10 @@ class PacePrediction:
                     best_model = Ridge(alpha=1.0)
                 
                 best_model.fit(X_train_scaled, y_train)
-                print("Using default parameters (hyperparameter tuning disabled)")
+                print("Using default parameters")
             
-            # Final cross-validation evaluation with best model using GroupKFold
-            print(f"Final GroupKFold CV evaluation with best model...")
+            
+            print(f"Final GroupKFold CV evaluation with best model: ") # final cross-validation evaluation with best model using GroupKFold
             final_cv_scores = cross_val_score(
                 best_model, X_train_scaled, y_train,
                 groups=groups_train,
@@ -209,11 +191,9 @@ class PacePrediction:
             final_rmse_scores = np.sqrt(-final_cv_scores)
             print(f"Final CV RMSE: {final_rmse_scores.mean():.4f} +- {final_rmse_scores.std():.4f}")
             
-            # Store the best model
-            self.trained_models[name] = best_model
             
-            # Step 3: Evaluate on all three sets
-            # Training set evaluation
+            self.trained_models[name] = best_model # save the best model
+            
             train_pred = best_model.predict(X_train_scaled)
             train_mae = mean_absolute_error(y_train, train_pred)
             train_rmse = np.sqrt(mean_squared_error(y_train, train_pred))
@@ -225,8 +205,8 @@ class PacePrediction:
                 'r2': train_r2
             }
             
-            # Validation set evaluation
-            val_pred = best_model.predict(X_val_scaled)
+            
+            val_pred = best_model.predict(X_val_scaled) # validation set evaluation
             val_mae = mean_absolute_error(y_val, val_pred)
             val_rmse = np.sqrt(mean_squared_error(y_val, val_pred))
             val_r2 = r2_score(y_val, val_pred)
@@ -237,8 +217,8 @@ class PacePrediction:
                 'r2': val_r2
             }
             
-            # Test set evaluation (final performance)
-            test_pred = best_model.predict(X_test_scaled)
+            
+            test_pred = best_model.predict(X_test_scaled) # test set evaluation
             test_mae = mean_absolute_error(y_test, test_pred)
             test_rmse = np.sqrt(mean_squared_error(y_test, test_pred))
             test_r2 = r2_score(y_test, test_pred)
@@ -249,30 +229,14 @@ class PacePrediction:
                 'r2': test_r2
             }
             
-            # Print results for this model
-            print(f"\nResults for {name}:")
+            print(f"\nResults for {name}:") # model results
             print(f"  Training   - MAE: {train_mae:.4f}, RMSE: {train_rmse:.4f}, R2: {train_r2:.4f}")
             print(f"  Validation - MAE: {val_mae:.4f}, RMSE: {val_rmse:.4f}, R2: {val_r2:.4f}")
             print(f"  Test       - MAE: {test_mae:.4f}, RMSE: {test_rmse:.4f}, R2: {test_r2:.4f}")
-            
-            # Check for overfitting
-            if train_mae < val_mae * 0.7:  # Training MAE is much better than validation
-                print(f"  WARNING: Possible overfitting detected!")
-            
-            # Check for reasonable predictions
-            print(f"  Test prediction range: {test_pred.min():.2f} to {test_pred.max():.2f} min/km")
-            
-            if test_pred.min() < 0 or test_pred.max() > 15:
-                print(f"  WARNING: Unrealistic predictions!")
-            else:
-                print(f"  Predictions look reasonable")
         
         self.feature_cols = feature_cols
         
-        # Print final comparison
-        print(f"\n{'='*80}")
-        print(f"FINAL MODEL COMPARISON")
-        print(f"{'='*80}")
+        print(f"FINAL MODEL COMPARISON:")
         
         print(f"\nTraining Set Results:")
         print(f"{'Model':<15} {'MAE':<8} {'RMSE':<8} {'R2':<8}")
@@ -292,8 +256,8 @@ class PacePrediction:
         for name, results in self.test_results.items():
             print(f"{name:<15} {results['mae']:<8.4f} {results['rmse']:<8.4f} {results['r2']:<8.4f}")
         
-        # Find and highlight best models
-        best_mae_model = min(self.test_results.keys(), key=lambda x: self.test_results[x]['mae'])
+        
+        best_mae_model = min(self.test_results.keys(), key=lambda x: self.test_results[x]['mae']) # highlight best models
         best_rmse_model = min(self.test_results.keys(), key=lambda x: self.test_results[x]['rmse'])
         best_r2_model = max(self.test_results.keys(), key=lambda x: self.test_results[x]['r2'])
         
@@ -302,16 +266,13 @@ class PacePrediction:
         print(f"  Best RMSE: {best_rmse_model} ({self.test_results[best_rmse_model]['rmse']:.4f})")
         print(f"  Best R2:   {best_r2_model} ({self.test_results[best_r2_model]['r2']:.4f})")
         
-        # Plot comparison
         self._plot_all_results()
         self._plot_predictions_vs_actual(X_train_scaled, y_train, X_val_scaled, y_val, X_test_scaled, y_test)
         
-        # NEW: Plot test set run example with actual vs predicted paces
         self._plot_test_run_example(df, test_idx)
     
     def predict_new_route(self, new_route_path, output_path=None):
-        """Predict pace for a new route using all trained models and save to CSV."""
-        print(f"\nLoading new route data...")
+        print(f"\nLoading new route data")
         new_df = pd.read_csv(new_route_path)
         
         X_new = new_df[self.feature_cols]
@@ -319,15 +280,14 @@ class PacePrediction:
         
         print(f"New route: {len(new_df)} segments")
         
-        # Create a copy of the original dataframe to append predictions to
-        output_df = new_df.copy()
+        
+        output_df = new_df.copy() # a copy of the original csv to append predictions
         predictions = {}
         
         for name, model in self.trained_models.items():
             pred = model.predict(X_new_scaled)
             predictions[name] = pred
             
-            # Add predictions to the output dataframe
             output_df[f'predicted_pace_{name}_min_per_km'] = pred
             
             total_time = pred.sum()
@@ -338,34 +298,24 @@ class PacePrediction:
             print(f"  Pace range: {pred.min():.2f} to {pred.max():.2f} min/km")
             print(f"  Test MAE: {self.test_results[name]['mae']:.4f} min/km")
             
-            # Check for unrealistic predictions
-            if pred.min() < 0 or pred.max() > 15:
-                print(f"  WARNING: Unrealistic predictions!")
-            else:
-                print(f"  Predictions look reasonable")
-        
-        # Add summary statistics
+
         model_columns = [f'predicted_pace_{name}_min_per_km' for name in self.trained_models.keys()]
         output_df['predicted_pace_mean_min_per_km'] = output_df[model_columns].mean(axis=1)
         output_df['predicted_pace_std_min_per_km'] = output_df[model_columns].std(axis=1)
-        
-        # Generate output filename if not provided
+
         if output_path is None:
             input_dir = os.path.dirname(new_route_path)
             input_filename = os.path.basename(new_route_path)
             input_name, input_ext = os.path.splitext(input_filename)
             output_path = os.path.join(input_dir, f"{input_name}_with_predictions{input_ext}")
         
-        # Save the enhanced dataframe to CSV
         output_df.to_csv(output_path, index=False)
-        print(f"\n=== Predictions saved to: {output_path} ===")
+        print(f"\nPredictions saved to: {output_path}")
         
-        # Print summary of what was added
         new_columns = [col for col in output_df.columns if col not in new_df.columns]
         print(f"Added columns: {new_columns}")
         
-        # Show a preview of the results
-        print(f"\nPreview of predictions (first 5 rows):")
+        print(f"\Head of predictions:")
         preview_columns = ['segment_km'] + model_columns + ['predicted_pace_mean_min_per_km', 'predicted_pace_std_min_per_km']
         if 'segment_km' in output_df.columns:
             print(output_df[preview_columns].head().round(3))
@@ -376,7 +326,6 @@ class PacePrediction:
         return predictions, output_path
     
     def _plot_all_results(self):
-        """Plot comparison of all three sets (train, validation, test)."""
         models = list(self.test_results.keys())
         
         train_mae = [self.train_results[m]['mae'] for m in models]
@@ -392,8 +341,7 @@ class PacePrediction:
         x = np.arange(len(models))
         width = 0.25
         
-        # MAE Plot
-        ax1.bar(x - width, train_mae, width, label='Training', alpha=0.8, color='lightblue')
+        ax1.bar(x - width, train_mae, width, label='Training', alpha=0.8, color='lightblue') # MAE plot
         ax1.bar(x, val_mae, width, label='Validation', alpha=0.8, color='orange')
         ax1.bar(x + width, test_mae, width, label='Test', alpha=0.8, color='lightcoral')
         
@@ -405,8 +353,7 @@ class PacePrediction:
         ax1.legend()
         ax1.grid(True, alpha=0.3)
         
-        # RMSE Plot
-        ax2.bar(x - width, train_rmse, width, label='Training', alpha=0.8, color='lightblue')
+        ax2.bar(x - width, train_rmse, width, label='Training', alpha=0.8, color='lightblue') # RMSE plot
         ax2.bar(x, val_rmse, width, label='Validation', alpha=0.8, color='orange')
         ax2.bar(x + width, test_rmse, width, label='Test', alpha=0.8, color='lightcoral')
         
@@ -422,7 +369,6 @@ class PacePrediction:
         plt.show()
     
     def _plot_predictions_vs_actual(self, X_train_scaled, y_train, X_val_scaled, y_val, X_test_scaled, y_test):
-        """Plot predicted vs actual values for all three sets."""
         fig, axes = plt.subplots(4, 3, figsize=(18, 20))
         
         set_names = ['Training', 'Validation', 'Test']
@@ -437,13 +383,13 @@ class PacePrediction:
                 axes[i, j].scatter(y_set, pred, alpha=0.6, color=color)
                 axes[i, j].plot([y_set.min(), y_set.max()], [y_set.min(), y_set.max()], 'r--', lw=2)
                 
-                if j == 2:  # Test set
+                if j == 2:  # test set
                     mae = self.test_results[name]['mae']
                     r2 = self.test_results[name]['r2']
-                elif j == 1:  # Validation set
+                elif j == 1:  # validation set
                     mae = self.val_results[name]['mae']
                     r2 = self.val_results[name]['r2']
-                else:  # Training set
+                else:  # training set
                     mae = self.train_results[name]['mae']
                     r2 = self.train_results[name]['r2']
                 
@@ -456,13 +402,12 @@ class PacePrediction:
         plt.show()
     
     def _plot_test_run_example(self, df, test_idx):
-        """Plot an example test run showing actual vs predicted paces with elevation profile."""
-        # Get test set data
-        test_df = df.iloc[test_idx].copy()
+       
+        test_df = df.iloc[test_idx].copy() # test set data
         test_runs = test_df['run_id'].unique()
         
-        # Select a random test run that has multiple segments (for better visualization)
-        run_segments_count = test_df['run_id'].value_counts()
+        
+        run_segments_count = test_df['run_id'].value_counts() # random test run 
         runs_with_multiple_segments = run_segments_count[run_segments_count >= 3].index
         
         if len(runs_with_multiple_segments) > 0:
@@ -470,31 +415,26 @@ class PacePrediction:
         else:
             selected_run_id = np.random.choice(test_runs)
         
-        # Get data for the selected run
         run_data = test_df[test_df['run_id'] == selected_run_id].copy()
         run_data = run_data.sort_values('segment_km') if 'segment_km' in run_data.columns else run_data.reset_index(drop=True)
         
-        print(f"\n{'='*60}")
-        print(f"TEST SET VALIDATION EXAMPLE")
-        print(f"{'='*60}")
+        print(f"TEST SET EXAMPLE:")
         print(f"Selected test run ID: {selected_run_id}")
         print(f"Number of segments: {len(run_data)}")
         
-        # Prepare features for prediction
         X_run = run_data[self.feature_cols]
         X_run_scaled = self.scaler.transform(X_run)
         y_actual = run_data['avg_pace_min/km']
         
-        # Get predictions from all models
-        run_predictions = {}
+        run_predictions = {} # predictions from all models
         model_maes = {}
         
         for name, model in self.trained_models.items():
             pred = model.predict(X_run_scaled)
             run_predictions[name] = pred
             
-            # Calculate MAE for this specific run
-            run_mae = mean_absolute_error(y_actual, pred)
+            
+            run_mae = mean_absolute_error(y_actual, pred) # MAE for this run
             model_maes[name] = run_mae
             
             print(f"\n{name} for this run:")
@@ -503,10 +443,8 @@ class PacePrediction:
             print(f"  MAE for this run: {run_mae:.4f} min/km")
             print(f"  Overall test MAE: {self.test_results[name]['mae']:.4f} min/km")
         
-        # Create the visualization
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10))
         
-        # Use segment_km if available, otherwise use index
         if 'segment_km' in run_data.columns:
             segments = run_data['segment_km']
             xlabel = 'Segment (km)'
@@ -514,19 +452,17 @@ class PacePrediction:
             segments = range(len(run_data))
             xlabel = 'Segment Index'
         
-        # Plot 1: Actual vs Predicted Paces (WITHOUT MAE in legend)
         colors = ['blue', 'orange', 'green', 'red']
         
-        # Plot actual pace first (thick black line)
-        ax1.plot(segments, y_actual, marker='o', linewidth=3, color='black', 
+        
+        ax1.plot(segments, y_actual, marker='o', linewidth=3, color='black', # actual pace, thick black line
                 label=f'Actual Pace', markersize=8, zorder=5)
         
-        # Plot model predictions WITHOUT MAE in legend
+
         for i, (model_name, paces) in enumerate(run_predictions.items()):
             ax1.plot(segments, paces, marker='s', label=f'{model_name}', 
                     linewidth=2, color=colors[i % len(colors)], alpha=0.8, markersize=6)
-        
-        # Add reasonable pace range shading
+
         ax1.axhspan(3, 8, alpha=0.1, color='green', label='Normal pace range', zorder=1)
         
         ax1.set_xlabel(xlabel)
@@ -535,16 +471,12 @@ class PacePrediction:
         ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         ax1.grid(True, alpha=0.3)
         
-        # Plot 2: Net Elevation Profile (NO UPHILL GRADIENT)
-        
-        # Calculate net elevation if both gain and loss columns exist
         if 'elevation_gain_m' in run_data.columns and 'elevation_loss_m' in run_data.columns:
             net_elevation = run_data['elevation_gain_m'] - run_data['elevation_loss_m']
             bars = ax2.bar(segments, net_elevation, alpha=0.7, color='green', label='Net Elevation')
             ax2.set_ylabel('Net Elevation (m)', color='green')
             ax2.set_title(f'Net Elevation Profile for Test Run {selected_run_id}')
         elif 'elevation_gain_m' in run_data.columns:
-            # Fallback to elevation gain if loss is not available
             bars = ax2.bar(segments, run_data['elevation_gain_m'], alpha=0.7, color='green', label='Elevation Gain')
             ax2.set_ylabel('Elevation Gain (m)', color='green')
             ax2.set_title(f'Elevation Profile for Test Run {selected_run_id}')
@@ -557,7 +489,6 @@ class PacePrediction:
         plt.tight_layout()
         plt.show()
         
-        # Print detailed segment comparison
         print(f"\nDetailed Segment Analysis for Test Run {selected_run_id}:")
         header = "Seg"
         if 'elevation_gain_m' in run_data.columns and 'elevation_loss_m' in run_data.columns:
@@ -590,13 +521,11 @@ class PacePrediction:
                 segment_errors[model_name] = error
                 line += f"| {pred_pace:7.2f} "
             
-            # Find best model for this segment
-            best_model = min(segment_errors, key=segment_errors.get)
+            best_model = min(segment_errors, key=segment_errors.get) # best model for this segment
             line += f"| {best_model}"
             
             print(line)
         
-        # Summary statistics for this run
         print(f"\nSummary for Test Run {selected_run_id}:")
         print(f"Actual run statistics:")
         print(f"  Total time: {y_actual.sum():.1f} min ({int(y_actual.sum()//60)}:{int(y_actual.sum()%60):02d})")
@@ -611,14 +540,11 @@ class PacePrediction:
         return selected_run_id, run_data, run_predictions, y_actual
 
     def _plot_new_route_predictions(self, route_df, predictions):
-        """Plot predictions for new route with net elevation profile."""
-        print(f"\n{'='*60}")
-        print(f"NEW ROUTE PACE PREDICTIONS")
-        print(f"{'='*60}")
+
+        print(f"NEW ROUTE PACE PREDICTIONS:")
         
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10))
         
-        # Use segment_km if available, otherwise use index
         if 'segment_km' in route_df.columns:
             segments = route_df['segment_km']
             xlabel = 'Segment (km)'
@@ -626,8 +552,8 @@ class PacePrediction:
             segments = range(len(route_df))
             xlabel = 'Segment Index'
         
-        # Plot 1: Pace predictions WITHOUT test MAE in legend
-        colors = ['blue', 'orange', 'green', 'red']
+        
+        colors = ['blue', 'orange', 'green', 'red'] # pace predictions
         for i, (model_name, paces) in enumerate(predictions.items()):
             ax1.plot(segments, paces, marker='o', label=f'{model_name}', 
                     linewidth=2, color=colors[i % len(colors)])
@@ -639,20 +565,16 @@ class PacePrediction:
         ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         ax1.grid(True, alpha=0.3)
         
-        # Plot 2: Net elevation profile (NO UPHILL GRADIENT)
-        
-        # Calculate net elevation if both gain and loss columns exist
-        if 'elevation_gain_m' in route_df.columns and 'elevation_loss_m' in route_df.columns:
+        if 'elevation_gain_m' in route_df.columns and 'elevation_loss_m' in route_df.columns: # net elevation profile
             net_elevation = route_df['elevation_gain_m'] - route_df['elevation_loss_m']
             ax2.bar(segments, net_elevation, alpha=0.7, color='green', label='Net Elevation')
             ax2.set_ylabel('Net Elevation (m)', color='green')
             ax2.set_title('NEW ROUTE: Net Elevation Profile')
         elif 'elevation_gain_m' in route_df.columns:
-            # Fallback to elevation gain if loss is not available
+
             ax2.bar(segments, route_df['elevation_gain_m'], alpha=0.7, color='green', label='Elevation Gain')
             ax2.set_ylabel('Elevation Gain (m)', color='green')
             ax2.set_title('NEW ROUTE: Elevation Profile')
-            print("Warning: elevation_loss_m column not found, using elevation_gain_m only")
         
         ax2.set_xlabel(xlabel)
         ax2.legend(loc='upper right')
@@ -661,7 +583,6 @@ class PacePrediction:
         plt.tight_layout()
         plt.show()
         
-        # Print detailed comparison without showing MAE in table header
         print(f"\nDetailed Segment Predictions:")
         header = "Segment"
         if 'elevation_gain_m' in route_df.columns and 'elevation_loss_m' in route_df.columns:
@@ -690,11 +611,9 @@ class PacePrediction:
             print(row)
     
     def get_test_mae_results(self):
-        """Return test MAE results for all models."""
         return {name: results['mae'] for name, results in self.test_results.items()}
     
     def get_all_results(self):
-        """Return all results (train, validation, test) for all models."""
         return {
             'train': self.train_results,
             'validation': self.val_results,
@@ -703,25 +622,24 @@ class PacePrediction:
         }
 
     def save_best_model(self, output_dir, model_name='LinearRegression'):
-        """Save the best model and its preprocessing components."""
         if model_name not in self.trained_models:
             raise ValueError(f"Model {model_name} not found in trained models")
         
         import os
         os.makedirs(output_dir, exist_ok=True)
         
-        # Save the trained model
-        model_path = os.path.join(output_dir, f'{model_name}_model.pkl')
+        
+        model_path = os.path.join(output_dir, f'{model_name}_model.pkl') # saving the trained model
         with open(model_path, 'wb') as f:
             pickle.dump(self.trained_models[model_name], f)
         
-        # Save the scaler
-        scaler_path = os.path.join(output_dir, f'{model_name}_scaler.pkl')
+        
+        scaler_path = os.path.join(output_dir, f'{model_name}_scaler.pkl') # save the scaler
         with open(scaler_path, 'wb') as f:
             pickle.dump(self.scaler, f)
         
-        # Save feature columns and metadata
-        metadata = {
+        
+        metadata = { # feature columns and metadata
             'model_name': model_name,
             'feature_cols': self.feature_cols,
             'test_mae': self.test_results[model_name]['mae'],
@@ -742,55 +660,46 @@ class PacePrediction:
         
         return output_dir
 
-# Simple usage functions
 def train_models(historic_csv_path, train_size=0.6, val_size=0.2, test_size=0.2, 
                 cv_folds=5, tune_hyperparameters=False):
-    """Train pace prediction models with proper train/validation/test split."""
     predictor = PacePrediction(tune_hyperparameters=tune_hyperparameters)
     predictor.train_and_evaluate(historic_csv_path, train_size, val_size, test_size, cv_folds)
     return predictor
 
 def predict_pace(trained_predictor, new_route_csv_path, output_csv_path=None):
-    """Predict pace for new route and save results to CSV."""
     return trained_predictor.predict_new_route(new_route_csv_path, output_csv_path)
 
-# Example usage
 if __name__ == "__main__":
-    print("=== Pace Prediction with Train/Validation/Test Split ===")
+    print("Pace Prediction with Train/Validation/Test Split")
     
-    # UPDATE YOUR FILE PATHS HERE
-    historic_csv = r'C:\\Users\\User\\Desktop\\SkripsieWebAppRepo\\running-pace-app\\FinalDataset\\LatestDataset_Cleaned_Removed_Anomaly_Runs_With_All_Features.csv'
-    new_route_csv = r'C:\\Desktop\\FirstTestRunRoute.csv'
+    historic_csv = r'C:\Users\User\Desktop\SkripsieWebAppRepo\running-pace-app\FinalDataset\LatestDataset_Cleaned_Removed_Anomaly_Runs_With_All_Features.csv'
+    new_route_csv = r'C:\Users\User\Desktop\TestingIncompleteSegment.csv'
     
-    # Optional: specify custom output path
-    output_csv = None  # Will auto-generate filename
+    output_csv = None
     
-    print("\n1. Training all models with train/validation/test split...")
+    print("\nTraining all models with train/validation/test split")
     predictor = train_models(
         historic_csv, 
         train_size=0.8,      # 80% for training
-        val_size=0.1,        # 10% for validation (hyperparameter tuning)
-        test_size=0.1,       # 10% for test (final evaluation)
+        val_size=0.1,        # 10% for validation
+        test_size=0.1,       # 10% for test
         cv_folds=5, 
         tune_hyperparameters=True
     )
     
-    print("\n2. Getting final test results...")
+    print("\nGetting final test results")
     test_mae_results = predictor.get_test_mae_results()
     all_results = predictor.get_all_results()
 
-    # NEW: Show Linear Regression coefficients
-    print("\n3. Analyzing Linear Regression coefficients...")
+    
+    print("\nLinear Regression coefficients") # Linear Regression coefficients
     lr_model = predictor.trained_models['LinearRegression']
     feature_names = predictor.feature_cols
     coefficients = lr_model.coef_
     
     print("\nLinear Regression Feature Coefficients:")
-    print("=" * 70)
     print(f"{'Feature':<30} {'Coefficient':>15} {'Impact':>20}")
-    print("-" * 70)
     
-    # Sort by absolute value
     coef_pairs = sorted(zip(feature_names, coefficients), 
                        key=lambda x: abs(x[1]), reverse=True)
     
@@ -798,20 +707,18 @@ if __name__ == "__main__":
         impact = "Slower pace" if coef > 0 else "Faster pace"
         print(f"{feature:<30} {coef:>15.6f}   {impact:>20}")
     
-    print("-" * 70)
     print(f"{'Intercept':<30} {lr_model.intercept_:>15.6f}")
-    print("=" * 70)
-    
+
     print("\nFinal Test MAE Results:")
     for model, mae in test_mae_results.items():
         print(f"{model}: {mae:.4f} min/km")
     
-    print("\n3. Predicting pace for new route...")
+    print("\n3. Predicting pace for new route:")
     predictions, output_path = predict_pace(predictor, new_route_csv, output_csv)
     
-    print(f"\nComplete! Results saved to: {output_path}")
+    print(f"\nResults saved to: {output_path}")
 
-    # Save the best model (Linear Regression)
+    # Save the best model
     #print("\n3. Saving the best model (Linear Regression)...")
     #model_dir = r'C:\\Users\\User\\Desktop\\SkripsieWebAppRepo\\Saved_Models'
     #predictor.save_best_model(model_dir, 'LinearRegression')

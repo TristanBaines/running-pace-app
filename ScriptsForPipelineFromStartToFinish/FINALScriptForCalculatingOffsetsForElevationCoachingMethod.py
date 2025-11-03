@@ -12,7 +12,6 @@ print("Terrain Analysis Data:")
 print(f"Flat average pace: {flat_pace} min/km")
 print(f"Uphill average pace: {uphill_pace} min/km")
 print(f"Downhill average pace: {downhill_pace} min/km")
-print()
 
 
 uphill_offset = ((uphill_pace - flat_pace) / flat_pace) * 100 # calculate uphill offset: ((uphill average pace - flat average pace) / flat average pace) * 100
@@ -23,7 +22,6 @@ downhill_offset = ((downhill_pace - flat_pace) / flat_pace) * 100 # calculate do
 print("Calculated Offsets:")
 print(f"Uphill offset: {uphill_offset:.2f}%")
 print(f"Downhill offset: {downhill_offset:.2f}%")
-print()
 
 results_df = pd.DataFrame({
     'terrain_type': ['uphill', 'downhill'],

@@ -1,8 +1,3 @@
-"""
-Analytics Module
-Provides deep performance analysis comparing actual run data to coached plans.
-"""
-
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Tuple
@@ -11,18 +6,7 @@ class PerformanceAnalytics:
     def __init__(self, actual_paces: List[float], coached_paces: List[float], 
                  uncoached_paces: List[float], elevation_gains: List[float], 
                  elevation_losses: List[float], coaching_methods: List[str], segment_distances: List[float] = None):
-        """
-        Initialize analytics with run data.
-        
-        Args:
-            actual_paces: Actual paces run (minutes per km)
-            coached_paces: Coached/predicted paces (minutes per km)
-            uncoached_paces: Original uncoached predictions (minutes per km)
-            elevation_gains: Elevation gain per segment (meters)
-            elevation_losses: Elevation loss per segment (meters)
-            coaching_methods: List of coaching methods applied
-            self.segment_distances = np.array(segment_distances) if segment_distances else np.ones(len(actual_paces))
-        """
+
         self.actual_paces = np.array(actual_paces)
         self.coached_paces = np.array(coached_paces)
         self.uncoached_paces = np.array(uncoached_paces)
@@ -31,24 +15,17 @@ class PerformanceAnalytics:
         self.coaching_methods = coaching_methods
         self.segment_distances = np.array(segment_distances) if segment_distances else np.ones(len(actual_paces))
         
-        # Calculate derived metrics
-        self.net_elevation = self.elevation_gains - self.elevation_losses
-        #self.segment_distances = np.ones(len(actual_paces))  # Assuming 1km segments
+        
+        self.net_elevation = self.elevation_gains - self.elevation_losses # calculate derived metrics
         self.pace_differences = self.actual_paces - self.coached_paces
 
         
     def analyze_terrain_performance(self) -> Dict:
-        """
-        Analyze performance across different terrain types.
         
-        Returns:
-            Dictionary with terrain-specific analytics
-        """
-        # Calculate gradients
-        gradients = (self.net_elevation / (self.segment_distances * 1000)) * 100
+        gradients = (self.net_elevation / (self.segment_distances * 1000)) * 100 # gradients
         
-        # Classify terrain
-        uphill_mask = gradients > 1.0
+        
+        uphill_mask = gradients > 1.0 # classify terrains
         downhill_mask = gradients < -1.0
         flat_mask = (gradients >= -1.0) & (gradients <= 1.0)
         
@@ -72,21 +49,15 @@ class PerformanceAnalytics:
         }
     
     def analyze_pacing_consistency(self) -> Dict:
-        """
-        Analyze how consistent the runner's pacing was.
         
-        Returns:
-            Dictionary with consistency metrics
-        """
-        # Calculate coefficient of variation for actual paces
-        actual_cv = (np.std(self.actual_paces) / np.mean(self.actual_paces)) * 100
+        actual_cv = (np.std(self.actual_paces) / np.mean(self.actual_paces)) * 100 # coefficient of variation for actual paces
         coached_cv = (np.std(self.coached_paces) / np.mean(self.coached_paces)) * 100
         
-        # Calculate pace variability
-        pace_changes = np.abs(np.diff(self.actual_paces)) # differences between actual paces
+        
+        pace_changes = np.abs(np.diff(self.actual_paces)) # pace variability, differences between actual paces
         avg_pace_change = np.mean(pace_changes) # average difference
         
-        significant_changes = pace_changes > (np.mean(self.actual_paces) * 0.1) # Identify significant pace fluctuations (>10% change)
+        significant_changes = pace_changes > (np.mean(self.actual_paces) * 0.1) # identify significant pace fluctuations (>10% change)
         
         return {
             'actual_cv': float(actual_cv),
@@ -98,12 +69,6 @@ class PerformanceAnalytics:
         }
     
     def analyze_splits(self) -> Dict:
-        """
-        Analyze first half vs second half performance (negative/positive splits).
-        
-        Returns:
-            Dictionary with split analysis
-        """
         n = len(self.actual_paces)
         half = n // 2
         
@@ -123,21 +88,14 @@ class PerformanceAnalytics:
         }
     
     def analyze_coaching_effectiveness(self) -> Dict:
-        """
-        Analyze how well the coaching plan performed.
-        
-        Returns:
-            Dictionary with coaching effectiveness metrics
-        """
-        # Overall adherence to coached plan
         mae = np.mean(np.abs(self.pace_differences))
         rmse = np.sqrt(np.mean(self.pace_differences ** 2))
         
         segments_beat = self.pace_differences < 0
         beat_rate = (np.sum(segments_beat) / len(segments_beat)) * 100
         
-        # Compare improvement vs uncoached
-        coached_improvement = self.uncoached_paces - self.coached_paces
+        
+        coached_improvement = self.uncoached_paces - self.coached_paces # compare
         actual_vs_uncoached = self.uncoached_paces - self.actual_paces
         
         return {
@@ -151,24 +109,16 @@ class PerformanceAnalytics:
         }
     
     def identify_best_worst_segments(self) -> Dict:
-        """
-        Identify best and worst performing segments relative to coached plan.
+        best_indices = np.argsort(self.pace_differences)[:3] # shows top 3 best
         
-        Returns:
-            Dictionary with best/worst segment information
-        """
-        # Best segments (most faster than coached)
-        best_indices = np.argsort(self.pace_differences)[:3] # shows top 3
-        
-        # Worst segments (slowest compared to coached - only positive differences)
-        slower_segments = np.where(self.pace_differences > 0)[0]  # Only segments where actual > coached
+        slower_segments = np.where(self.pace_differences > 0)[0]  # segments where actual slower than coached
 
         if len(slower_segments) > 0:
-            # Sort slower segments by how much slower they were
-            slower_sorted = slower_segments[np.argsort(self.pace_differences[slower_segments])[::-1]]
-            worst_indices = slower_sorted[:min(3, len(slower_sorted))]  # Take up to 3
+            
+            slower_sorted = slower_segments[np.argsort(self.pace_differences[slower_segments])[::-1]] # sort slower segments
+            worst_indices = slower_sorted[:min(3, len(slower_sorted))]  # up to 3
         else:
-            worst_indices = []  # No struggling segments if runner beat all paces
+            worst_indices = []  # none if runner beat all paces
         
         def segment_info(idx):
             return {
@@ -186,16 +136,10 @@ class PerformanceAnalytics:
         }
     
     def generate_recommendations(self) -> List[str]:
-        """
-        Generate training recommendations based on performance analysis.
-        
-        Returns:
-            List of recommendation strings
-        """
         recommendations = []
         
-        # Terrain-based recommendations
-        terrain = self.analyze_terrain_performance()
+        
+        terrain = self.analyze_terrain_performance() # terrain-based
         
         if terrain['uphill'] and terrain['uphill']['avg_difference'] > 0.5: # more than x min/km slower than coached pace
             recommendations.append(
@@ -218,8 +162,8 @@ class PerformanceAnalytics:
                 "You took advantage of downhills and saved yourself time - excellent!"
             )
         
-        # Consistency recommendations
-        consistency = self.analyze_pacing_consistency()
+        
+        consistency = self.analyze_pacing_consistency() # pacing consistency
         
         if consistency['actual_cv'] > 15: # more than x% fluctuation in pace
             recommendations.append(
@@ -232,8 +176,8 @@ class PerformanceAnalytics:
                 "You maintained steady pacing across segments - keep it up!"
             )
         
-        # Split recommendations
-        splits = self.analyze_splits()
+        
+        splits = self.analyze_splits() # splits
         
         if splits['split_type'] == 'positive' and splits['split_difference'] > 0.3:
             recommendations.append(
@@ -245,8 +189,8 @@ class PerformanceAnalytics:
                 "Excellent negative split! You maintained or improved pace in the second half."
             )
         
-        # Coaching adherence
-        effectiveness = self.analyze_coaching_effectiveness()
+        
+        effectiveness = self.analyze_coaching_effectiveness() # beating coach
 
         if effectiveness['beat_rate'] < 30:
             recommendations.append(
@@ -269,12 +213,6 @@ class PerformanceAnalytics:
         return recommendations
     
     def get_full_analytics_report(self) -> Dict:
-        """
-        Generate complete analytics report.
-        
-        Returns:
-            Dictionary containing all analytics
-        """
         return {
             'terrain_analysis': self.analyze_terrain_performance(),
             'consistency_analysis': self.analyze_pacing_consistency(),

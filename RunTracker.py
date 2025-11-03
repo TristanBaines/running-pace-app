@@ -34,8 +34,8 @@ class RunTracker:
         self.is_completed = False
     
     def start_run(self):
-        # Start the run - begins both global and segment timer
-        if self.is_running:
+        
+        if self.is_running: # Start the run, begins both global and segment timer
             return {"error": "Run already started"}
         
         current_time = time.time()
@@ -77,7 +77,6 @@ class RunTracker:
 
 
     def log_km_split(self):
-        """Log completion of current km segment"""
         if self.is_paused:
             return jsonify({"error": "Cannot log split while paused"}) # paused
         
@@ -151,7 +150,6 @@ class RunTracker:
         return jsonify(split_data)
     
     def get_current_status(self):
-        """Get current run status"""
         if not self.run_start_time:
             return {
                 "status": "not_started",
@@ -181,7 +179,6 @@ class RunTracker:
 
 
     def get_run_summary(self):
-        """Get complete run summary after completion"""
         if not self.is_completed:
             return {"error": "Run not completed yet"}
         
@@ -233,7 +230,6 @@ class RunTracker:
         else:
             uncoached_paces = self.route_data[uncoached_pace_col].values
             summary["predicted_paces_min"] = uncoached_paces.tolist()
-            # summary["total_predicted_time_sec"] = 0
 
             
             segment_distances = self.route_data['segment_distance_km'].values # total predicted time from uncoached paces

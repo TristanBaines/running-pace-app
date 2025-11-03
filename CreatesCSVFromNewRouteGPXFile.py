@@ -60,21 +60,16 @@ def calculate_segment_distance(segment):
     return distance
 
 def process_gpx_route_with_enhanced_features(gpx_path, output_path=None, segment_length_km=1.0):
-    """
-    Process GPX route and create dataset with all enhanced features matching the training dataset.
-    """
-
     run_id = 1
 
     print(f"Processing route with run_id: {run_id}")
     
-    # Load your GPX file
     print(f"Loading GPX file: {gpx_path}")
     with open(gpx_path, 'r') as gpx_file:
         gpx = gpxpy.parse(gpx_file)
 
-    # Extract all points from the GPX file
-    route_points = []
+    
+    route_points = [] # extract all points from the GPX file
     for track in gpx.tracks:
         for segment in track.segments:
             for point in segment.points:
@@ -87,11 +82,10 @@ def process_gpx_route_with_enhanced_features(gpx_path, output_path=None, segment
 
     print(f"Extracted {len(route_points)} route points")
 
-    # Split the route into segments
-    route_segments = segment_route_by_distance(route_points, segment_length_km)
+    
+    route_segments = segment_route_by_distance(route_points, segment_length_km) # segment route
     print(f"Created {len(route_segments)} segments")
 
-    # Collect data for each segment
     data = []
 
     cum_distance_km = 0.0
@@ -104,27 +98,27 @@ def process_gpx_route_with_enhanced_features(gpx_path, output_path=None, segment
         seg_distance = calculate_segment_distance(seg)
         elev_gain, elev_loss = calculate_elevation_gain_loss(seg)
 
-        # Update cumulative values
-        cum_distance_km += seg_distance
+        
+        cum_distance_km += seg_distance # update cumulative values
         cum_elevation_gain_m += elev_gain
         cum_elevation_loss_m += elev_loss
 
-        # Calculate basic gradient features
-        uphill_gradient = elev_gain / seg_distance if seg_distance > 0 else 0
+        
+        uphill_gradient = elev_gain / seg_distance if seg_distance > 0 else 0 # calculate gradient features
         downhill_gradient = elev_loss / seg_distance if seg_distance > 0 else 0
 
-        # Calculate interaction features for GAIN
-        cum_dist_elev_gain = cum_distance_km * elev_gain
+        
+        cum_dist_elev_gain = cum_distance_km * elev_gain # interaction features for gain
         cum_dist_prev_elev_gain = cum_distance_km * prev_elevation_gain
         cum_dist_up_grad = cum_distance_km * uphill_gradient
 
-        # Calculate interaction features for LOSS
-        cum_dist_elev_loss = cum_distance_km * elev_loss
+        
+        cum_dist_elev_loss = cum_distance_km * elev_loss # interaction features for loss
         cum_dist_prev_elev_loss = cum_distance_km * prev_elevation_loss
         cum_dist_down_grad = cum_distance_km * downhill_gradient
 
-        # Create segment record with all features in the correct order
-        segment_record = {
+        
+        segment_record = { # all features in the correct order
             'run_id': run_id,
             'segment_km': idx + 1,
             'segment_distance_km': seg_distance,
@@ -147,14 +141,12 @@ def process_gpx_route_with_enhanced_features(gpx_path, output_path=None, segment
         
         data.append(segment_record)
         
-        # Update previous values for next iteration
-        prev_elevation_gain = elev_gain
+        
+        prev_elevation_gain = elev_gain # update previous values for next iteration
         prev_elevation_loss = elev_loss
 
-    # Convert to DataFrame
     df = pd.DataFrame(data)
     
-    # Define exact column order (matches your training dataset)
     column_order = [
         'run_id',
         'segment_km',
@@ -176,53 +168,28 @@ def process_gpx_route_with_enhanced_features(gpx_path, output_path=None, segment
         'cum_dist_down_grad'
     ]
     
-    # Reorder columns
+
     df = df[column_order]
     
     print(f"\nRoute dataset shape: {df.shape}")
     print(f"Columns ({len(df.columns)}): {list(df.columns)}")
     
-    # Display summary of all enhanced features
-    enhanced_features = [
-        'uphill_gradient', 'downhill_gradient', 
-        'cum_dist_elev_gain', 'cum_dist_elev_loss',
-        'cum_dist_prev_elev_gain', 'cum_dist_prev_elev_loss',
-        'cum_dist_up_grad', 'cum_dist_down_grad'
-    ]
-    
-    print(f"\nEnhanced features summary:")
-    for feature in enhanced_features:
-        print(f"  {feature}:")
-        print(f"    Range: {df[feature].min():.4f} to {df[feature].max():.4f}")
-        print(f"    Mean: {df[feature].mean():.4f}, Std: {df[feature].std():.4f}")
-    
-    # Save to CSV
     if output_path is None:
         output_path = gpx_path.replace('.gpx', '_route_segments_enhanced.csv')
     
     df.to_csv(output_path, index=False)
-    print(f"\nEnhanced route dataset saved to: {output_path}")
+    print(f"\nDataset saved to: {output_path}")
     
     return df
 
 if __name__ == '__main__': 
-    # Process your GPX route
-    gpx_path = 'C:\\Users\\User\\Desktop\\TestingIncompleteSegment.gpx'
+
+    gpx_path = 'C:\\Users\\User\\Desktop\\FirstTestRunRoute.gpx'
     output_path = 'C:\\Users\\User\\Desktop\\TestingIncompleteSegment.csv'
     
-    # Create enhanced route dataset
+
     route_df = process_gpx_route_with_enhanced_features(gpx_path, output_path)
     
-    print(f"\nRoute processing complete!")
-    print(f"Run ID: {route_df['run_id'].iloc[0]}")
-    print(f"Total segments: {len(route_df)}")
-    print(f"Total route distance: {route_df['cum_distance_km'].max():.2f} km")
-    print(f"Total elevation gain: {route_df['cum_elevation_gain_m'].max():.1f} m")
-    print(f"Total elevation loss: {route_df['cum_elevation_loss_m'].max():.1f} m")
-    print(f"Average uphill gradient: {route_df['uphill_gradient'].mean():.4f}")
-    print(f"Average downhill gradient: {route_df['downhill_gradient'].mean():.4f}")
-    
-    # Display first few rows with key columns
     print(f"\nFirst 5 segments:")
     key_columns = [
         'run_id', 'segment_km', 
@@ -232,7 +199,7 @@ if __name__ == '__main__':
     ]
     print(route_df[key_columns].head())
     
-    # Verify column order
-    print(f"\nColumn order verification:")
+    
+    print(f"\nColumn order verification:") # verify column order
     for i, col in enumerate(route_df.columns, 1):
         print(f"  {i}. {col}")
